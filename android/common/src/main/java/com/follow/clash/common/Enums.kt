@@ -7,6 +7,9 @@ enum class QuickAction {
     STOP,
     START,
     TOGGLE,
+    MODE_RULE,
+    MODE_GLOBAL,
+    MODE_DIRECT,
 }
 
 enum class BroadcastAction {

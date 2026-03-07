@@ -12,6 +12,10 @@ data class SharedState(
     val onlyStatisticsProxy: Boolean = false,
     val vpnOptions: VpnOptions? = null,
     val setupParams: SetupParams? = null,
+    val mode: String = "rule",
+    val ruleText: String = "Rule",
+    val globalText: String = "Global",
+    val directText: String = "Direct",
 )
 
 data class SetupParams(

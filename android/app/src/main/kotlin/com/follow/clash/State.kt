@@ -120,8 +120,11 @@ object State {
         Service.updateNotificationParams(
             NotificationParams(
                 title = sharedState.currentProfileName,
-                stopText = sharedState.stopText,
-                onlyStatisticsProxy = sharedState.onlyStatisticsProxy
+                onlyStatisticsProxy = sharedState.onlyStatisticsProxy,
+                currentMode = sharedState.mode,
+                ruleText = sharedState.ruleText,
+                globalText = sharedState.globalText,
+                directText = sharedState.directText,
             )
         )
         Service.setCrashlytics(sharedState.crashlytics)
@@ -179,6 +182,12 @@ object State {
                 }
             }
         }
+    }
+
+    suspend fun handleChangeModeAction(mode: String) {
+        tilePlugin?.handleChangeMode(mode)
+        sharedState = sharedState.copy(mode = mode)
+        syncState()
     }
 
     fun handleStopService() {

@@ -33,14 +33,18 @@ import kotlinx.coroutines.launch
 
 data class ExtendedNotificationParams(
     val title: String,
-    val stopText: String,
     val onlyStatisticsProxy: Boolean,
     val contentText: String,
+    val currentMode: String,
+    val ruleText: String,
+    val globalText: String,
+    val directText: String,
 )
 
 val NotificationParams.extended: ExtendedNotificationParams
     get() = ExtendedNotificationParams(
-        title, stopText, onlyStatisticsProxy, Core.getSpeedTrafficText(onlyStatisticsProxy)
+        title, onlyStatisticsProxy, Core.getSpeedTrafficText(onlyStatisticsProxy),
+        currentMode, ruleText, globalText, directText
     )
 
 class NotificationModule(private val service: Service) : Module() {
@@ -104,14 +108,34 @@ class NotificationModule(private val service: Service) : Module() {
         }
     }
 
+    private fun currentModeLabel(params: ExtendedNotificationParams): String {
+        return when (params.currentMode) {
+            "rule" -> params.ruleText
+            "global" -> params.globalText
+            "direct" -> params.directText
+            else -> params.currentMode
+        }
+    }
+
     private fun update(params: ExtendedNotificationParams) {
+        val contentText = "${currentModeLabel(params)} · ${params.contentText}"
         service.startForeground(
             with(notificationBuilder) {
                 setContentTitle(params.title)
-                setContentText(params.contentText)
+                setContentText(contentText)
+                setStyle(NotificationCompat.BigTextStyle().bigText(contentText))
                 clearActions()
                 addAction(
-                    0, params.stopText, QuickAction.STOP.quickIntent.toPendingIntent
+                    0, params.ruleText,
+                    QuickAction.MODE_RULE.quickIntent.toPendingIntent
+                )
+                addAction(
+                    0, params.globalText,
+                    QuickAction.MODE_GLOBAL.quickIntent.toPendingIntent
+                )
+                addAction(
+                    0, params.directText,
+                    QuickAction.MODE_DIRECT.quickIntent.toPendingIntent
                 ).build()
             })
     }

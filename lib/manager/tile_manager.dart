@@ -1,6 +1,7 @@
 import 'package:fl_clash/common/app_localizations.dart';
 import 'package:fl_clash/controller.dart';
 import 'package:fl_clash/core/controller.dart';
+import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/plugins/app.dart';
 import 'package:fl_clash/plugins/tile.dart';
 import 'package:fl_clash/providers/providers.dart';
@@ -42,6 +43,16 @@ class _TileContainerState extends ConsumerState<TileManager> with TileListener {
     appController.updateStatus(false);
     app?.tip(appLocalizations.stopVpn);
     super.onStop();
+  }
+
+  @override
+  void onChangeMode(String mode) {
+    final modeEnum = Mode.values.firstWhere(
+      (m) => m.name == mode,
+      orElse: () => Mode.rule,
+    );
+    appController.changeMode(modeEnum);
+    super.onChangeMode(mode);
   }
 
   @override
