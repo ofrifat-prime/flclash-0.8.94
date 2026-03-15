@@ -806,6 +806,12 @@ class MessageLookup extends MessageLookupByLibrary {
     "trayIconDesc": MessageLookupByLibrary.simpleMessage(
       "Настройка значка трея для каждого состояния",
     ),
+    "trayIconUseTemplate": MessageLookupByLibrary.simpleMessage(
+      "Использовать шаблон изображения",
+    ),
+    "trayIconUseTemplateDesc": MessageLookupByLibrary.simpleMessage(
+      "Отображать пользовательские значки как монохромный шаблон (следует оформлению системы)",
+    ),
     "stackMode": MessageLookupByLibrary.simpleMessage("Режим стека"),
     "standard": MessageLookupByLibrary.simpleMessage("Стандартный"),
     "standardModeDesc": MessageLookupByLibrary.simpleMessage(

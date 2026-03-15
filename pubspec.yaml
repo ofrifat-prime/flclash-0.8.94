@@ -91,6 +91,7 @@ flutter:
     - assets/images/avatar/
     - assets/images/empty/
     - assets/images/icon/
+    - assets/images/icon/macos/
   fonts:
     - family: JetBrainsMono
       fonts:

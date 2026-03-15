@@ -965,6 +965,7 @@ extension SystemControllerExt on AppController {
       trayIconStoppedPath: setting.trayIconStoppedPath,
       trayIconProxyPath: setting.trayIconProxyPath,
       trayIconTunPath: setting.trayIconTunPath,
+      trayIconUseTemplate: setting.trayIconUseTemplate,
     );
   }
 

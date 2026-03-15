@@ -87,6 +87,7 @@ abstract class AppSettingProps with _$AppSettingProps {
     @Default(null) String? trayIconStoppedPath,
     @Default(null) String? trayIconProxyPath,
     @Default(null) String? trayIconTunPath,
+    @Default(false) bool trayIconUseTemplate,
   }) = _AppSettingProps;
 
   factory AppSettingProps.fromJson(Map<String, Object?> json) =>

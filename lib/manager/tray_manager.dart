@@ -27,7 +27,7 @@ class _TrayContainerState extends ConsumerState<TrayManager> with TrayListener {
     });
     ref.listenManual(
       appSettingProvider.select(
-        (s) => (s.trayIconStoppedPath, s.trayIconProxyPath, s.trayIconTunPath),
+        (s) => (s.trayIconStoppedPath, s.trayIconProxyPath, s.trayIconTunPath, s.trayIconUseTemplate),
       ),
       (prev, next) {
         if (prev != next) appController.updateTray();

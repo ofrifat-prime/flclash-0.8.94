@@ -21,12 +21,23 @@ class TrayIconView extends ConsumerWidget {
     final tunPath = ref.watch(
       appSettingProvider.select((s) => s.trayIconTunPath),
     );
+    final useTemplate = ref.watch(
+      appSettingProvider.select((s) => s.trayIconUseTemplate),
+    );
 
     final items = [
+      SwitchListTile(
+        title: Text(appLocalizations.trayIconUseTemplate),
+        subtitle: Text(appLocalizations.trayIconUseTemplateDesc),
+        value: useTemplate,
+        onChanged: (v) => ref
+            .read(appSettingProvider.notifier)
+            .update((s) => s.copyWith(trayIconUseTemplate: v)),
+      ),
       _TrayIconRow(
         label: appLocalizations.stop,
         iconPath: stoppedPath,
-        defaultAsset: 'assets/images/icon/status_1.png',
+        defaultAsset: 'assets/images/icon/macos/status_1.png',
         onPicked: (path) => ref
             .read(appSettingProvider.notifier)
             .update((s) => s.copyWith(trayIconStoppedPath: path)),
@@ -37,7 +48,7 @@ class TrayIconView extends ConsumerWidget {
       _TrayIconRow(
         label: appLocalizations.systemProxy,
         iconPath: proxyPath,
-        defaultAsset: 'assets/images/icon/status_2.png',
+        defaultAsset: 'assets/images/icon/macos/status_2.png',
         onPicked: (path) => ref
             .read(appSettingProvider.notifier)
             .update((s) => s.copyWith(trayIconProxyPath: path)),
@@ -48,7 +59,7 @@ class TrayIconView extends ConsumerWidget {
       _TrayIconRow(
         label: appLocalizations.tun,
         iconPath: tunPath,
-        defaultAsset: 'assets/images/icon/status_3.png',
+        defaultAsset: 'assets/images/icon/macos/status_3.png',
         onPicked: (path) => ref
             .read(appSettingProvider.notifier)
             .update((s) => s.copyWith(trayIconTunPath: path)),
@@ -69,7 +80,7 @@ class TrayIconView extends ConsumerWidget {
   }
 }
 
-class _TrayIconRow extends StatelessWidget {
+class _TrayIconRow extends StatefulWidget {
   final String label;
   final String? iconPath;
   final String defaultAsset;
@@ -84,12 +95,24 @@ class _TrayIconRow extends StatelessWidget {
     required this.onReset,
   });
 
+  @override
+  State<_TrayIconRow> createState() => _TrayIconRowState();
+}
+
+class _TrayIconRowState extends State<_TrayIconRow> {
+  int _imageVersion = 0;
+
   Widget _buildIconPreview() {
-    final path = iconPath;
+    final path = widget.iconPath;
     if (path != null && File(path).existsSync()) {
-      return Image.file(File(path), width: 22, height: 22);
+      return Image.file(
+        File(path),
+        key: ValueKey(_imageVersion),
+        width: 22,
+        height: 22,
+      );
     }
-    return Image.asset(defaultAsset, width: 22, height: 22);
+    return Image.asset(widget.defaultAsset, width: 22, height: 22);
   }
 
   Future<void> _pickIcon() async {
@@ -109,20 +132,22 @@ class _TrayIconRow extends StatelessWidget {
     if (!await destDir.exists()) {
       await destDir.create(recursive: true);
     }
-    final destPath = p.join(destDir.path, '$label$ext');
+    final destPath = p.join(destDir.path, '${widget.label}$ext');
     await File(srcPath).copy(destPath);
-    onPicked(destPath);
+    PaintingBinding.instance.imageCache.evict(FileImage(File(destPath)));
+    setState(() => _imageVersion++);
+    widget.onPicked(destPath);
   }
 
   @override
   Widget build(BuildContext context) {
-    final hasCustom = iconPath != null && File(iconPath!).existsSync();
+    final hasCustom = widget.iconPath != null && File(widget.iconPath!).existsSync();
     return ListItem(
       leading: _buildIconPreview(),
-      title: Text(label),
+      title: Text(widget.label),
       subtitle: hasCustom
           ? Text(
-              p.basename(iconPath!),
+              p.basename(widget.iconPath!),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             )
@@ -136,7 +161,7 @@ class _TrayIconRow extends StatelessWidget {
           ),
           if (hasCustom)
             TextButton(
-              onPressed: onReset,
+              onPressed: widget.onReset,
               child: Text(appLocalizations.reset),
             ),
         ],

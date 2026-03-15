@@ -38,6 +38,7 @@ _AppSettingProps _$AppSettingPropsFromJson(Map<String, dynamic> json) =>
       trayIconStoppedPath: json['trayIconStoppedPath'] as String? ?? null,
       trayIconProxyPath: json['trayIconProxyPath'] as String? ?? null,
       trayIconTunPath: json['trayIconTunPath'] as String? ?? null,
+      trayIconUseTemplate: json['trayIconUseTemplate'] as bool? ?? false,
     );
 
 Map<String, dynamic> _$AppSettingPropsToJson(_AppSettingProps instance) =>
@@ -67,6 +68,7 @@ Map<String, dynamic> _$AppSettingPropsToJson(_AppSettingProps instance) =>
       'trayIconStoppedPath': instance.trayIconStoppedPath,
       'trayIconProxyPath': instance.trayIconProxyPath,
       'trayIconTunPath': instance.trayIconTunPath,
+      'trayIconUseTemplate': instance.trayIconUseTemplate,
     };
 
 const _$RestoreStrategyEnumMap = {
