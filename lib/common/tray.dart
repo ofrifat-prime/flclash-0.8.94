@@ -30,26 +30,52 @@ class Tray {
     await trayManager.destroy();
   }
 
-  String getTryIcon({required bool isStart, required bool tunEnable}) {
-    if (system.isMacOS || !isStart) {
+  String getTryIcon({
+    required bool isStart,
+    required bool tunEnable,
+    required bool systemProxy,
+    String? customStopped,
+    String? customProxy,
+    String? customTun,
+  }) {
+    if (!isStart || (!tunEnable && !systemProxy)) {
+      final p = customStopped;
+      if (p != null && File(p).existsSync()) return p;
       return 'assets/images/icon/status_1.$trayIconSuffix';
     }
-    if (!tunEnable) {
-      return 'assets/images/icon/status_2.$trayIconSuffix';
+    if (tunEnable) {
+      final p = customTun;
+      if (p != null && File(p).existsSync()) return p;
+      return 'assets/images/icon/status_3.$trayIconSuffix';
     }
-    return 'assets/images/icon/status_3.$trayIconSuffix';
+    final p = customProxy;
+    if (p != null && File(p).existsSync()) return p;
+    return 'assets/images/icon/status_2.$trayIconSuffix';
   }
 
   Future _updateSystemTray({
     required bool isStart,
     required bool tunEnable,
+    required bool systemProxy,
+    String? customStopped,
+    String? customProxy,
+    String? customTun,
   }) async {
     if (Platform.isLinux) {
       await trayManager.destroy();
     }
+    final iconPath = getTryIcon(
+      isStart: isStart,
+      tunEnable: tunEnable,
+      systemProxy: systemProxy,
+      customStopped: customStopped,
+      customProxy: customProxy,
+      customTun: customTun,
+    );
+    final isCustom = iconPath.startsWith('/');
     await trayManager.setIcon(
-      getTryIcon(isStart: isStart, tunEnable: tunEnable),
-      isTemplate: true,
+      iconPath,
+      isTemplate: !isCustom,
     );
     if (!Platform.isLinux) {
       await trayManager.setToolTip(appName);
@@ -59,6 +85,9 @@ class Tray {
   Future<void> update({
     required TrayState trayState,
     required Traffic traffic,
+    String? trayIconStoppedPath,
+    String? trayIconProxyPath,
+    String? trayIconTunPath,
   }) async {
     if (system.isAndroid) {
       return;
@@ -67,6 +96,10 @@ class Tray {
       await _updateSystemTray(
         isStart: trayState.isStart,
         tunEnable: trayState.tunEnable,
+        systemProxy: trayState.systemProxy,
+        customStopped: trayIconStoppedPath,
+        customProxy: trayIconProxyPath,
+        customTun: trayIconTunPath,
       );
     }
     List<MenuItem> menuItems = [];
@@ -188,6 +221,10 @@ class Tray {
       await _updateSystemTray(
         isStart: trayState.isStart,
         tunEnable: trayState.tunEnable,
+        systemProxy: trayState.systemProxy,
+        customStopped: trayIconStoppedPath,
+        customProxy: trayIconProxyPath,
+        customTun: trayIconTunPath,
       );
     }
     updateTrayTitle(showTrayTitle: trayState.showTrayTitle, traffic: traffic);

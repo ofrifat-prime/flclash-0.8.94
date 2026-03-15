@@ -802,6 +802,10 @@ class MessageLookup extends MessageLookupByLibrary {
     "speedStatistics": MessageLookupByLibrary.simpleMessage(
       "Статистика скорости",
     ),
+    "trayIcon": MessageLookupByLibrary.simpleMessage("Значок трея"),
+    "trayIconDesc": MessageLookupByLibrary.simpleMessage(
+      "Настройка значка трея для каждого состояния",
+    ),
     "stackMode": MessageLookupByLibrary.simpleMessage("Режим стека"),
     "standard": MessageLookupByLibrary.simpleMessage("Стандартный"),
     "standardModeDesc": MessageLookupByLibrary.simpleMessage(

@@ -84,6 +84,9 @@ abstract class AppSettingProps with _$AppSettingProps {
     @Default(false) bool developerMode,
     @Default(RestoreStrategy.compatible) RestoreStrategy restoreStrategy,
     @Default(true) bool showTrayTitle,
+    @Default(null) String? trayIconStoppedPath,
+    @Default(null) String? trayIconProxyPath,
+    @Default(null) String? trayIconTunPath,
   }) = _AppSettingProps;
 
   factory AppSettingProps.fromJson(Map<String, Object?> json) =>
