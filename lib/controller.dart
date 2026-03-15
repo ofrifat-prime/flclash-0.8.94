@@ -956,11 +956,16 @@ extension SystemControllerExt on AppController {
   }
 
   Future<void> updateTray() async {
+    final setting = _ref.read(appSettingProvider);
     tray?.update(
       trayState: _ref.read(trayStateProvider),
       traffic: _ref.read(
         trafficsProvider.select((state) => state.list.safeLast(Traffic())),
       ),
+      trayIconStoppedPath: setting.trayIconStoppedPath,
+      trayIconProxyPath: setting.trayIconProxyPath,
+      trayIconTunPath: setting.trayIconTunPath,
+      trayIconUseTemplate: setting.trayIconUseTemplate,
     );
   }
 

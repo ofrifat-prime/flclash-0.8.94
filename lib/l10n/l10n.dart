@@ -3579,6 +3579,41 @@ class AppLocalizations {
     );
   }
 
+  /// `Tray icon`
+  String get trayIcon {
+    return Intl.message('Tray icon', name: 'trayIcon', desc: '', args: []);
+  }
+
+  /// `Customize tray icon for each state`
+  String get trayIconDesc {
+    return Intl.message(
+      'Customize tray icon for each state',
+      name: 'trayIconDesc',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Use template image`
+  String get trayIconUseTemplate {
+    return Intl.message(
+      'Use template image',
+      name: 'trayIconUseTemplate',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Render custom icons as monochrome template (follows system appearance)`
+  String get trayIconUseTemplateDesc {
+    return Intl.message(
+      'Render custom icons as monochrome template (follows system appearance)',
+      name: 'trayIconUseTemplateDesc',
+      desc: '',
+      args: [],
+    );
+  }
+
   /// `The current page has changes. Are you sure you want to reset?`
   String get resetPageChangesTip {
     return Intl.message(
