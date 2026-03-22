@@ -2,7 +2,11 @@ name: Build APK
 
 on:
   push:
-    branches: [ main, develop, feature/codex-ready ]
+    branches:
+      - feature/codex-ready
+  pull_request:
+    branches:
+      - feature/codex-ready
   workflow_dispatch:
 
 jobs:
@@ -10,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           submodules: recursive
@@ -18,14 +22,17 @@ jobs:
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
-          java-version: '17'
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.41.2'
-          channel: 'stable'
+          flutter-version: 3.41.2
+          channel: stable
           cache: true
 
       - name: Cache Gradle
@@ -34,37 +41,41 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: gradle-${{ hashFiles('android/gradle/wrapper/gradle-wrapper.properties') }}
-          restore-keys: gradle-
-
-      - name: Cache NDK
-        uses: actions/cache@v4
-        with:
-          path: /usr/local/lib/android/sdk/ndk/28.0.13004108
-          key: ndk-28.0.13004108
+          key: gradle-${{ runner.os }}-${{ hashFiles('android/**/*.gradle*', 'android/settings.gradle.kts', 'android/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
 
       - name: Cache pub dependencies
         uses: actions/cache@v4
         with:
-          path: ~/.pub-cache
-          key: pub-${{ hashFiles('pubspec.lock') }}
-          restore-keys: pub-
+          path: |
+            ~/.pub-cache
+            .dart_tool
+          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.lock') }}
+          restore-keys: |
+            pub-${{ runner.os }}-
 
-      - name: Check Dart version
-        run: dart --version
+      - name: Cache Android NDK
+        uses: actions/cache@v4
+        with:
+          path: |
+            /usr/local/lib/android/sdk/ndk/28.0.13004108
+          key: ndk-${{ runner.os }}-28.0.13004108
+          restore-keys: |
+            ndk-${{ runner.os }}-
 
-      - name: Disable analytics
-        run: flutter config --no-analytics
-
-      - name: Get dependencies
+      - name: Install dependencies
         run: flutter pub get
 
-      - name: Build APK debug
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos
+        continue-on-error: true
+
+      - name: Build debug APK
         run: flutter build apk --debug
 
-      - name: Upload APK
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: FlClashRP-debug
           path: build/app/outputs/flutter-apk/app-debug.apk
-          retention-days: 7
