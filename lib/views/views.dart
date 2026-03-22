@@ -13,4 +13,5 @@ export 'onboarding.dart';
 export 'profiles/profiles.dart';
 export 'proxies/proxies.dart';
 export 'resources.dart';
+export 'simple_home.dart';
 export 'tools.dart';
