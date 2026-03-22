@@ -1,6 +1,7 @@
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/common/russia_preset.dart';
 import 'package:fl_clash/controller.dart';
+import 'package:fl_clash/providers/database.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/views/tools.dart';
 import 'package:flutter/material.dart';
@@ -14,48 +15,31 @@ class SimpleHomeView extends ConsumerStatefulWidget {
 }
 
 class _SimpleHomeViewState extends ConsumerState<SimpleHomeView> {
-  static const _backgroundColor = Color(0xFFF6F6F6);
-  static const _importColor = Color(0xFF4A90D9);
-  static const _powerOnColor = Color(0xFF2E7D32);
-  static const _powerOffColor = Color(0xFF9E9E9E);
-  static const _russiaColor = Color(0xFFD32F2F);
-  static const _settingsColor = Color(0xFF6750A4);
+  static const _accentColor = Color(0xFFFF6D00);
 
   Future<void> _showImportDialog() async {
-    final ctx = context;
     final controller = TextEditingController();
     final shouldImport = await showDialog<bool>(
-      context: ctx,
-      builder: (dialogContext) {
+      context: context,
+      builder: (context) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(28),
-          ),
           title: const Text('Импорт ключа'),
           content: TextField(
             controller: controller,
             autofocus: true,
-            decoration: InputDecoration(
-              hintText: 'https://...',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
+            decoration: const InputDecoration(
+              hintText: 'Вставьте ссылку',
+              border: OutlineInputBorder(),
             ),
             maxLines: 2,
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
+              onPressed: () => Navigator.of(context).pop(false),
               child: const Text('Отмена'),
             ),
             FilledButton(
-              onPressed: () => Navigator.of(dialogContext).pop(true),
+              onPressed: () => Navigator.of(context).pop(true),
               child: const Text('Импортировать'),
             ),
           ],
@@ -65,8 +49,7 @@ class _SimpleHomeViewState extends ConsumerState<SimpleHomeView> {
     final url = controller.text.trim();
     controller.dispose();
     if (shouldImport != true || url.isEmpty) return;
-    if (!ctx.mounted) return;
-    await appController.addProfileFormURL(url.trim());
+    await appController.addProfileFormURL(url);
   }
 
   void _toggleConnection(bool isStart) {
@@ -85,93 +68,95 @@ class _SimpleHomeViewState extends ConsumerState<SimpleHomeView> {
   Widget build(BuildContext context) {
     final isStart = ref.watch(isStartProvider);
     final runTime = ref.watch(runTimeProvider);
-    final theme = Theme.of(context);
-    final textTheme = theme.textTheme;
-    final powerSubtitle = isStart
-        ? (runTime != null ? utils.getTimeText(runTime) : 'Подключено')
-        : 'VPN выключен';
+    final profileCount = ref.watch(profilesProvider.select((state) => state.length));
 
     return Scaffold(
-      backgroundColor: _backgroundColor,
+      backgroundColor: const Color(0xFF111214),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
+          padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
+              const Text(
                 'FlClashRP',
-                style: textTheme.displaySmall?.copyWith(
+                style: TextStyle(
+                  fontSize: 32,
                   fontWeight: FontWeight.w800,
-                  color: Colors.black,
+                  color: Colors.white,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               Text(
                 'Свободный интернет',
-                style: textTheme.bodyLarge?.copyWith(
-                  color: Colors.grey.shade600,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey.shade400,
                 ),
               ),
-              const SizedBox(height: 20),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: isStart
-                      ? const Color(0xFFE8F5E9)
-                      : const Color(0xFFF5F5F5),
-                  borderRadius: BorderRadius.circular(100),
-                ),
-                child: Text(
-                  isStart ? '● Подключено' : '● Отключено',
-                  style: textTheme.bodyMedium?.copyWith(
-                    color: isStart ? _powerOnColor : Colors.grey.shade700,
-                    fontWeight: FontWeight.w700,
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: isStart ? Colors.greenAccent : Colors.grey,
+                      shape: BoxShape.circle,
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  Text(
+                    isStart ? 'Подключено' : 'Отключено',
+                    style: TextStyle(
+                      color: isStart ? Colors.greenAccent : Colors.grey.shade400,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
               Expanded(
                 child: GridView.count(
                   crossAxisCount: 2,
                   mainAxisSpacing: 16,
                   crossAxisSpacing: 16,
-                  childAspectRatio: 0.95,
+                  childAspectRatio: 1,
                   children: [
                     _HomeCard(
                       icon: Icons.download_rounded,
-                      iconColor: _importColor,
-                      iconBackgroundColor: _importColor.withOpacity(0.12),
-                      title: 'Импорт ключа',
-                      subtitle: 'Добавить VPN',
+                      title: '📥 Импорт ключа',
+                      subtitle: profileCount > 0
+                          ? 'Профилей: $profileCount'
+                          : 'Вставьте ссылку на подписку',
+                      startColor: Colors.blue.shade700,
+                      endColor: Colors.blue.shade500,
                       onTap: _showImportDialog,
                     ),
                     _HomeCard(
-                      icon: Icons.power_settings_new_rounded,
-                      iconColor: isStart ? _powerOnColor : _powerOffColor,
-                      iconBackgroundColor: (isStart ? _powerOnColor : _powerOffColor)
-                          .withOpacity(0.12),
-                      title: isStart ? 'Выключить' : 'Включить',
-                      subtitle: powerSubtitle,
+                      icon: Icons.power_settings_new,
+                      title: '⚡ Вкл / Выкл',
+                      subtitle: isStart
+                          ? (runTime != null ? 'Работает: ${utils.getTimeText(runTime)}' : 'Подключено')
+                          : 'Сейчас отключено',
+                      startColor: isStart ? _accentColor : Colors.grey.shade700,
+                      endColor: isStart ? const Color(0xFFFF8F3D) : Colors.grey.shade600,
                       onTap: () => _toggleConnection(isStart),
                     ),
                     _HomeCard(
-                      icon: Icons.public_rounded,
-                      iconColor: _russiaColor,
-                      iconBackgroundColor: _russiaColor.withOpacity(0.12),
-                      title: 'Россия, вперёд!',
-                      subtitle: 'Применить настройки',
+                      icon: Icons.flag_rounded,
+                      title: '🇷🇺 Россия,\nвперёд!',
+                      subtitle: 'Применить готовые настройки',
+                      startColor: Colors.red.shade700,
+                      endColor: Colors.red.shade500,
                       onTap: _applyRussiaPreset,
                     ),
                     _HomeCard(
-                      icon: Icons.tune_rounded,
-                      iconColor: _settingsColor,
-                      iconBackgroundColor: _settingsColor.withOpacity(0.12),
-                      title: 'Настройки',
-                      subtitle: 'Конфигурация',
+                      icon: Icons.settings_rounded,
+                      title: '⚙️ Настройки',
+                      subtitle: 'Открыть инструменты',
+                      startColor: Colors.grey.shade700,
+                      endColor: Colors.grey.shade600,
                       onTap: () {
                         Navigator.of(context).push(
                           MaterialPageRoute(builder: (_) => const ToolsView()),
@@ -179,34 +164,6 @@ class _SimpleHomeViewState extends ConsumerState<SimpleHomeView> {
                       },
                     ),
                   ],
-                ),
-              ),
-              Center(
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 16, top: 8),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(100),
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.2),
-                        width: 0.5,
-                      ),
-                    ),
-                    child: Text(
-                      'from pavel with love ♥',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.black.withOpacity(0.35),
-                        letterSpacing: 1.2,
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                  ),
                 ),
               ),
             ],
@@ -219,66 +176,67 @@ class _SimpleHomeViewState extends ConsumerState<SimpleHomeView> {
 
 class _HomeCard extends StatelessWidget {
   final IconData icon;
-  final Color iconColor;
-  final Color iconBackgroundColor;
   final String title;
   final String subtitle;
+  final Color startColor;
+  final Color endColor;
   final VoidCallback onTap;
 
   const _HomeCard({
     required this.icon,
-    required this.iconColor,
-    required this.iconBackgroundColor,
     required this.title,
     required this.subtitle,
+    required this.startColor,
+    required this.endColor,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
     return Material(
-      color: Colors.white,
-      elevation: 1,
-      surfaceTintColor: Colors.black12,
-      borderRadius: BorderRadius.circular(28),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(28),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: iconBackgroundColor,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Icon(icon, size: 28, color: iconColor),
+      color: Colors.transparent,
+      elevation: 4,
+      borderRadius: BorderRadius.circular(24),
+      child: Ink(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [startColor, endColor],
+          ),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(24),
+          onTap: onTap,
+          child: SizedBox(
+            height: 160,
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(icon, size: 40, color: Colors.white),
+                  const Spacer(),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.white.withValues(alpha: 0.86),
+                    ),
+                  ),
+                ],
               ),
-              const Spacer(),
-              Text(
-                title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  color: Colors.black87,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                subtitle,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: textTheme.bodySmall?.copyWith(
-                  color: Colors.grey.shade600,
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),
