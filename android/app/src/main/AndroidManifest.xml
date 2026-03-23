@@ -81,18 +81,6 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <action android:name="${applicationId}.action.TOGGLE" />
             </intent-filter>
-            <intent-filter>
-                <category android:name="android.intent.category.DEFAULT" />
-                <action android:name="${applicationId}.action.MODE_RULE" />
-            </intent-filter>
-            <intent-filter>
-                <category android:name="android.intent.category.DEFAULT" />
-                <action android:name="${applicationId}.action.MODE_GLOBAL" />
-            </intent-filter>
-            <intent-filter>
-                <category android:name="android.intent.category.DEFAULT" />
-                <action android:name="${applicationId}.action.MODE_DIRECT" />
-            </intent-filter>
         </activity>
 
         <service
@@ -117,6 +105,7 @@
             <intent-filter>
                 <action android:name="${applicationId}.intent.action.SERVICE_CREATED" />
                 <action android:name="${applicationId}.intent.action.SERVICE_DESTROYED" />
+                <action android:name="${applicationId}.intent.action.MODE_CHANGED" />
             </intent-filter>
         </receiver>
 

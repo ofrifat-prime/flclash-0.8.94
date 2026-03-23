@@ -186,23 +186,8 @@ object State {
 
     suspend fun handleChangeModeAction(mode: String) {
         tilePlugin?.handleChangeMode(mode)
-        if (flutterEngine == null) {
-            changeModeViaCore(mode)
-        }
         sharedState = sharedState.copy(mode = mode)
         syncState()
-    }
-
-    private suspend fun changeModeViaCore(mode: String) {
-        val updateParamsJson = Gson().toJson(mapOf("mode" to mode))
-        val actionJson = Gson().toJson(
-            mapOf(
-                "id" to "changeMode#${System.currentTimeMillis()}",
-                "method" to "updateConfig",
-                "data" to updateParamsJson
-            )
-        )
-        Service.invokeAction(actionJson, null)
     }
 
     fun handleStopService() {

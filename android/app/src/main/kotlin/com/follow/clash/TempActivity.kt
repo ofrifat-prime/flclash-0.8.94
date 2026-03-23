@@ -31,24 +31,6 @@ class TempActivity : Activity(),
                     State.handleToggleAction()
                 }
             }
-
-            QuickAction.MODE_RULE.action -> {
-                launch {
-                    State.handleChangeModeAction("rule")
-                }
-            }
-
-            QuickAction.MODE_GLOBAL.action -> {
-                launch {
-                    State.handleChangeModeAction("global")
-                }
-            }
-
-            QuickAction.MODE_DIRECT.action -> {
-                launch {
-                    State.handleChangeModeAction("direct")
-                }
-            }
         }
         finish()
     }

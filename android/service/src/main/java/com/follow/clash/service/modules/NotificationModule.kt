@@ -11,6 +11,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.getSystemService
 import com.follow.clash.common.Components
 import com.follow.clash.common.GlobalState
+import com.follow.clash.common.BroadcastAction
 import com.follow.clash.common.QuickAction
 import com.follow.clash.common.action
 import com.follow.clash.common.receiveBroadcastFlow
@@ -70,6 +71,12 @@ class NotificationModule(private val service: Service) : Module() {
         if (currentParams != null) {
             State.notificationParamsFlow.tryEmit(currentParams.copy(currentMode = mode))
         }
+        val intent = Intent().apply {
+            action = BroadcastAction.MODE_CHANGED.action
+            putExtra("mode", mode)
+            setPackage(GlobalState.packageName)
+        }
+        service.sendBroadcast(intent, GlobalState.RECEIVE_BROADCASTS_PERMISSIONS)
     }
 
     override fun onInstall() {

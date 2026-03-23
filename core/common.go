@@ -205,8 +205,13 @@ func updateConfig(params *UpdateParams) {
 		adapter.UnifiedDelay.Store(general.UnifiedDelay)
 	}
 	if params.Mode != nil {
+		oldMode := general.Mode
 		general.Mode = *params.Mode
 		tunnel.SetMode(general.Mode)
+		if oldMode != general.Mode {
+			closeConnections()
+			resolver.ResetConnection()
+		}
 	}
 	if params.LogLevel != nil {
 		general.LogLevel = *params.LogLevel
