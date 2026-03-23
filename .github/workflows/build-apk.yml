@@ -1,5 +1,4 @@
 name: Build APK
-
 on:
   push:
     branches:
@@ -8,16 +7,13 @@ on:
     branches:
       - feature/codex-ready
   workflow_dispatch:
-
 jobs:
   build:
     runs-on: ubuntu-latest
-
     env:
       FLUTTER_VERSION: 3.41.2
       JAVA_VERSION: 17
       NDK_VERSION: 28.0.13004108
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -62,6 +58,12 @@ jobs:
 
       - name: Install pub dependencies
         run: flutter pub get
+
+      - name: Generate code
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Generate launcher icons
+        run: dart run flutter_launcher_icons
 
       - name: Analyze
         run: flutter analyze --no-fatal-infos
