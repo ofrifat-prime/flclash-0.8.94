@@ -37,6 +37,17 @@ val Application.sharedState: SharedState
         }
     }
 
+fun Application.updateSharedStateMode(mode: String) {
+    try {
+        val sp = getSharedPreferences("FlutterSharedPreferences", MODE_PRIVATE)
+        val res = sp.getString("flutter.sharedState", "") ?: return
+        val state = Gson().fromJson(res, SharedState::class.java) ?: return
+        val updated = state.copy(mode = mode)
+        sp.edit().putString("flutter.sharedState", Gson().toJson(updated)).apply()
+    } catch (_: Exception) {
+    }
+}
+
 
 private var lastToast: Toast? = null
 

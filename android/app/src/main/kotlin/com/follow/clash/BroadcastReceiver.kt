@@ -24,6 +24,14 @@ class BroadcastReceiver : BroadcastReceiver() {
                     State.handleStopServiceAction()
                 }
             }
+
+            BroadcastAction.MODE_CHANGED.action -> {
+                val mode = intent.getStringExtra("mode") ?: return
+                GlobalState.application.updateSharedStateMode(mode)
+                GlobalState.launch {
+                    State.handleChangeModeAction(mode)
+                }
+            }
         }
     }
 }

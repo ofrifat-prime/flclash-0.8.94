@@ -28,6 +28,10 @@ class TilePlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
         channel.invokeMethodOnMainThread<Any>("stop", null)
     }
 
+    fun handleChangeMode(mode: String) {
+        channel.invokeMethodOnMainThread<Any>("changeMode", mode)
+    }
+
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {}
 }

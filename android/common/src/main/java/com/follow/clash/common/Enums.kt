@@ -7,11 +7,15 @@ enum class QuickAction {
     STOP,
     START,
     TOGGLE,
+    MODE_RULE,
+    MODE_GLOBAL,
+    MODE_DIRECT,
 }
 
 enum class BroadcastAction {
     SERVICE_CREATED,
     SERVICE_DESTROYED,
+    MODE_CHANGED,
 }
 
 enum class AccessControlMode {

@@ -11,6 +11,8 @@ abstract mixin class TileListener {
   void onStop() {}
 
   void onDetached() {}
+
+  void onChangeMode(String mode) {}
 }
 
 class Tile {
@@ -35,6 +37,10 @@ class Tile {
           break;
         case 'detached':
           listener.onDetached();
+          break;
+        case 'changeMode':
+          final mode = call.arguments as String;
+          listener.onChangeMode(mode);
           break;
       }
     }
