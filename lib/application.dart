@@ -1,8 +1,9 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:fl_clash/clash/clash.dart';
 import 'package:fl_clash/common/common.dart';
+import 'package:fl_clash/core/core.dart';
 import 'package:fl_clash/l10n/l10n.dart';
 import 'package:fl_clash/manager/hotkey_manager.dart';
 import 'package:fl_clash/manager/manager.dart';
@@ -17,24 +18,22 @@ import 'controller.dart';
 import 'pages/pages.dart';
 
 class Application extends ConsumerStatefulWidget {
-  const Application({
-    super.key,
-  });
+  const Application({super.key});
 
   @override
   ConsumerState<Application> createState() => ApplicationState();
 }
 
 class ApplicationState extends ConsumerState<Application> {
-  Timer? _autoUpdateGroupTaskTimer;
   Timer? _autoUpdateProfilesTaskTimer;
+  bool _preHasVpn = false;
 
   final _pageTransitionsTheme = const PageTransitionsTheme(
     builders: <TargetPlatform, PageTransitionsBuilder>{
-      TargetPlatform.android: CommonPageTransitionsBuilder(),
-      TargetPlatform.windows: CommonPageTransitionsBuilder(),
-      TargetPlatform.linux: CommonPageTransitionsBuilder(),
-      TargetPlatform.macOS: CommonPageTransitionsBuilder(),
+      TargetPlatform.android: commonSharedXPageTransitions,
+      TargetPlatform.windows: commonSharedXPageTransitions,
+      TargetPlatform.linux: commonSharedXPageTransitions,
+      TargetPlatform.macOS: commonSharedXPageTransitions,
     },
   );
 
@@ -48,65 +47,49 @@ class ApplicationState extends ConsumerState<Application> {
   @override
   void initState() {
     super.initState();
-    _autoUpdateGroupTask();
-    _autoUpdateProfilesTask();
-    globalState.appController = AppController(context, ref);
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) async {
       final currentContext = globalState.navigatorKey.currentContext;
       if (currentContext != null) {
-        globalState.appController = AppController(currentContext, ref);
+        await appController.attach(currentContext, ref);
+      } else {
+        exit(0);
       }
-      await globalState.appController.init();
-      globalState.appController.initLink();
+      _autoUpdateProfilesTask();
+      appController.initLink();
       app?.initShortcuts();
     });
   }
 
-  _autoUpdateGroupTask() {
-    _autoUpdateGroupTaskTimer = Timer(const Duration(milliseconds: 20000), () {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        globalState.appController.updateGroupsDebounce();
-        _autoUpdateGroupTask();
-      });
-    });
-  }
-
-  _autoUpdateProfilesTask() {
+  void _autoUpdateProfilesTask() {
     _autoUpdateProfilesTaskTimer = Timer(const Duration(minutes: 20), () async {
-      await globalState.appController.autoUpdateProfiles();
+      await appController.autoUpdateProfiles();
       _autoUpdateProfilesTask();
     });
   }
 
-  _buildPlatformState(Widget child) {
+  Widget _buildPlatformState({required Widget child}) {
     if (system.isDesktop) {
       return WindowManager(
         child: TrayManager(
-          child: HotKeyManager(
-            child: ProxyManager(
-              child: child,
-            ),
-          ),
+          child: HotKeyManager(child: ProxyManager(child: child)),
         ),
       );
     }
-    return AndroidManager(
-      child: TileManager(
-        child: child,
-      ),
-    );
+    return AndroidManager(child: TileManager(child: child));
   }
 
-  _buildState(Widget child) {
+  Widget _buildState({required Widget child}) {
     return AppStateManager(
-      child: ClashManager(
+      child: CoreManager(
         child: ConnectivityManager(
           onConnectivityChanged: (results) async {
-            if (!results.contains(ConnectivityResult.vpn)) {
-              await clashCore.closeConnections();
+            commonPrint.log('connectivityChanged ${results.toString()}');
+            appController.updateLocalIp();
+            final hasVpn = results.contains(ConnectivityResult.vpn);
+            if (_preHasVpn == hasVpn) {
+              appController.addCheckIp();
             }
-            globalState.appController.updateLocalIp();
-            globalState.appController.addCheckIpNumDebounce();
+            _preHasVpn = hasVpn;
           },
           child: child,
         ),
@@ -114,88 +97,77 @@ class ApplicationState extends ConsumerState<Application> {
     );
   }
 
-  _buildPlatformApp(Widget child) {
+  Widget _buildPlatformApp({required Widget child}) {
     if (system.isDesktop) {
-      return WindowHeaderContainer(
-        child: child,
-      );
+      return WindowHeaderContainer(child: child);
     }
-    return VpnManager(
-      child: child,
-    );
+    return VpnManager(child: child);
   }
 
-  _buildApp(Widget child) {
-    return MessageManager(
-      child: ThemeManager(
-        child: child,
-      ),
-    );
+  Widget _buildApp({required Widget child}) {
+    return StatusManager(child: ThemeManager(child: child));
   }
 
   @override
   Widget build(context) {
-    return _buildPlatformState(
-      _buildState(
-        Consumer(
-          builder: (_, ref, child) {
-            final locale =
-                ref.watch(appSettingProvider.select((state) => state.locale));
-            final themeProps = ref.watch(themeSettingProvider);
-            return MaterialApp(
-              debugShowCheckedModeBanner: false,
-              navigatorKey: globalState.navigatorKey,
-              localizationsDelegates: const [
-                AppLocalizations.delegate,
-                GlobalMaterialLocalizations.delegate,
-                GlobalCupertinoLocalizations.delegate,
-                GlobalWidgetsLocalizations.delegate
-              ],
-              builder: (_, child) {
-                return AppEnvManager(
-                  child: _buildPlatformApp(
-                    _buildApp(child!),
-                  ),
-                );
-              },
-              scrollBehavior: BaseScrollBehavior(),
-              title: appName,
-              locale: utils.getLocaleForString(locale),
-              supportedLocales: AppLocalizations.delegate.supportedLocales,
-              themeMode: themeProps.themeMode,
-              theme: ThemeData(
-                useMaterial3: true,
-                pageTransitionsTheme: _pageTransitionsTheme,
-                colorScheme: _getAppColorScheme(
-                  brightness: Brightness.light,
-                  primaryColor: themeProps.primaryColor,
+    return Consumer(
+      builder: (_, ref, child) {
+        final locale = ref.watch(
+          appSettingProvider.select((state) => state.locale),
+        );
+        final themeProps = ref.watch(themeSettingProvider);
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          navigatorKey: globalState.navigatorKey,
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+          ],
+          builder: (_, child) {
+            return AppEnvManager(
+              child: _buildApp(
+                child: _buildPlatformState(
+                  child: _buildState(child: _buildPlatformApp(child: child!)),
                 ),
               ),
-              darkTheme: ThemeData(
-                useMaterial3: true,
-                pageTransitionsTheme: _pageTransitionsTheme,
-                colorScheme: _getAppColorScheme(
-                  brightness: Brightness.dark,
-                  primaryColor: themeProps.primaryColor,
-                ).toPureBlack(themeProps.pureBlack),
-              ),
-              home: child,
             );
           },
-          child: const HomePage(),
-        ),
-      ),
+          scrollBehavior: BaseScrollBehavior(),
+          title: appName,
+          locale: utils.getLocaleForString(locale),
+          supportedLocales: AppLocalizations.delegate.supportedLocales,
+          themeMode: themeProps.themeMode,
+          theme: ThemeData(
+            useMaterial3: true,
+            pageTransitionsTheme: _pageTransitionsTheme,
+            colorScheme: _getAppColorScheme(
+              brightness: Brightness.light,
+              primaryColor: themeProps.primaryColor,
+            ),
+          ),
+          darkTheme: ThemeData(
+            useMaterial3: true,
+            pageTransitionsTheme: _pageTransitionsTheme,
+            colorScheme: _getAppColorScheme(
+              brightness: Brightness.dark,
+              primaryColor: themeProps.primaryColor,
+            ).toPureBlack(themeProps.pureBlack),
+          ),
+          home: child!,
+        );
+      },
+      child: const HomePage(),
     );
   }
 
   @override
   Future<void> dispose() async {
     linkManager.destroy();
-    _autoUpdateGroupTaskTimer?.cancel();
     _autoUpdateProfilesTaskTimer?.cancel();
-    await clashCore.destroy();
-    await globalState.appController.savePreferences();
-    await globalState.appController.handleExit();
+    await coreController.destroy();
+    await appController.handleExit();
     super.dispose();
   }
 }

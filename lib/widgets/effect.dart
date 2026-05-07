@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -63,10 +64,7 @@ class _EffectGestureDetectorState extends State<EffectGestureDetector>
 class CommonExpandIcon extends StatefulWidget {
   final bool expand;
 
-  const CommonExpandIcon({
-    super.key,
-    this.expand = false,
-  });
+  const CommonExpandIcon({super.key, this.expand = false});
 
   @override
   State<CommonExpandIcon> createState() => _CommonExpandIconState();
@@ -77,19 +75,21 @@ class _CommonExpandIconState extends State<CommonExpandIcon>
   late AnimationController _animationController;
   late Animation<double> _iconTurns;
 
+  static final Animatable<double> _iconTurnTween = Tween<double>(
+    begin: 0.0,
+    end: 0.5,
+  ).chain(CurveTween(curve: Curves.fastOutSlowIn));
+
   @override
   void initState() {
     super.initState();
-
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 200),
       vsync: this,
     );
-    _iconTurns = _animationController.drive(
-      Tween<double>(begin: 0.0, end: 0.5),
-    );
+    _iconTurns = _animationController.drive(_iconTurnTween);
     if (widget.expand) {
-      _animationController.value = 1.0;
+      _animationController.value = pi;
     }
   }
 
@@ -106,23 +106,24 @@ class _CommonExpandIconState extends State<CommonExpandIcon>
   }
 
   @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: _animationController.view,
       builder: (_, child) {
-        return RotationTransition(
-          turns: _iconTurns,
-          child: child!,
-        );
+        return RotationTransition(turns: _iconTurns, child: child!);
       },
-      child: const Icon(
-        Icons.expand_more,
-      ),
+      child: const Icon(Icons.expand_more),
     );
   }
 }
 
-Widget proxyDecorator(
+Widget commonProxyDecorator(
   Widget child,
   int index,
   Animation<double> animation,
@@ -132,10 +133,7 @@ Widget proxyDecorator(
     builder: (_, Widget? child) {
       final double animValue = Curves.easeInOut.transform(animation.value);
       final double scale = lerpDouble(1, 1.02, animValue)!;
-      return Transform.scale(
-        scale: scale,
-        child: child,
-      );
+      return Transform.scale(scale: scale, child: child);
     },
     child: child,
   );
