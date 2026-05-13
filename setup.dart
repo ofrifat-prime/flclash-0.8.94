@@ -379,20 +379,20 @@ class BuildCommand extends Command {
   }
 
   Future<void> _getLinuxDependencies(Arch arch) async {
-    await Build.exec(Build.getExecutable('sudo apt update -y'));
-    await Build.exec(
-      Build.getExecutable('sudo apt install -y ninja-build libgtk-3-dev'),
-    );
-    await Build.exec(
-      Build.getExecutable('sudo apt install -y libayatana-appindicator3-dev'),
-    );
-    await Build.exec(
-      Build.getExecutable('sudo apt-get install -y libkeybinder-3.0-dev'),
-    );
-    await Build.exec(Build.getExecutable('sudo apt install -y locate'));
+    // await Build.exec(Build.getExecutable('sudo apt update -y'));
+    // await Build.exec(
+    //   Build.getExecutable('sudo apt install -y ninja-build libgtk-3-dev'),
+    // );
+    // await Build.exec(
+    //   Build.getExecutable('sudo apt install -y libayatana-appindicator3-dev'),
+    // );
+    // await Build.exec(
+    //   Build.getExecutable('sudo apt-get install -y libkeybinder-3.0-dev'),
+    // );
+    // await Build.exec(Build.getExecutable('sudo apt install -y locate'));
     if (arch == Arch.amd64) {
-      await Build.exec(Build.getExecutable('sudo apt install -y rpm patchelf'));
-      await Build.exec(Build.getExecutable('sudo apt install -y libfuse2'));
+      // await Build.exec(Build.getExecutable('sudo apt install -y rpm patchelf'));
+      // await Build.exec(Build.getExecutable('sudo apt install -y libfuse2'));
 
       final downloadName = arch == Arch.amd64 ? 'x86_64' : 'aarch64';
       await Build.exec(
@@ -401,9 +401,9 @@ class BuildCommand extends Command {
         ),
       );
       await Build.exec(Build.getExecutable('chmod +x appimagetool'));
-      await Build.exec(
-        Build.getExecutable('sudo mv appimagetool /usr/local/bin/'),
-      );
+      // await Build.exec(
+      //   Build.getExecutable('sudo mv appimagetool /usr/local/bin/'),
+      // );
     }
   }
 

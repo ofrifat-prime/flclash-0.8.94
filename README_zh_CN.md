@@ -125,3 +125,7 @@ on Mobile:
         <img alt="start" width=50% src="https://api.star-history.com/svg?repos=chen08209/FlClash&Date"/>
     </a>
 </p>
+
+```shell
+export PATH="$HOME/.pub-cache/bin:$(pwd)/go/bin:$(pwd)/flutter/bin:$(pwd):$PATH" && export FLUTTER_STORAGE_BASE_URL=https://storage.flutter-io.cn && export PUB_HOSTED_URL=https://pub.flutter-io.cn && dart setup.dart linux --arch amd64
+```

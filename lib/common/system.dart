@@ -95,6 +95,23 @@ class System {
       return AuthorizeCode.success;
     } else if (Platform.isLinux) {
       final shell = Platform.environment['SHELL'] ?? 'bash';
+
+      var tryResult = await Process.run(shell, [
+        '-c',
+        'chown root:root "$corePath" && chmod +sx "$corePath"',
+      ]);
+
+      if (tryResult.exitCode != 0) {
+        tryResult = await Process.run(shell, [
+          '-c',
+          'sudo -n chown root:root "$corePath" && sudo -n chmod +sx "$corePath"',
+        ]);
+      }
+
+      if (tryResult.exitCode == 0) {
+        return AuthorizeCode.success;
+      }
+
       final password = await globalState.showCommonDialog<String>(
         child: InputDialog(
           obscureText: true,
@@ -102,6 +119,11 @@ class System {
           value: '',
         ),
       );
+
+      if (password == null || password.isEmpty) {
+        return AuthorizeCode.error;
+      }
+
       final arguments = [
         '-c',
         'echo "$password" | sudo -S chown root:root "$corePath" && echo "$password" | sudo -S chmod +sx "$corePath"',
