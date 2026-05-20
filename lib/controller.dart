@@ -563,8 +563,13 @@ extension SetupControllerExt on AppController {
         if (!_ref.read(initProvider)) {
           return;
         }
-        await globalState.handleStart([updateRunTime, updateTraffic]);
-        applyProfileDebounce(force: true, silence: true);
+        await applyProfile(
+          force: true,
+          silence: true,
+          preloadInvoke: () async {
+            await globalState.handleStart([updateRunTime, updateTraffic]);
+          },
+        );
       } else {
         globalState.needInitStatus = false;
         await applyProfile(
@@ -575,6 +580,7 @@ extension SetupControllerExt on AppController {
         );
       }
     } else {
+      debouncer.cancel(FunctionTag.applyProfile);
       await globalState.handleStop();
       coreController.resetTraffic();
       _ref.read(trafficsProvider.notifier).clear();
