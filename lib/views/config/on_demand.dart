@@ -222,7 +222,7 @@ class _OnDemandViewState extends ConsumerState<OnDemandView>
                                       ? null
                                       : context.colorScheme.error,
                                   padding: const EdgeInsets.symmetric(
-                                    horizontal: 0,
+                                    horizontal: 12,
                                   ),
                                   minimumSize: const Size(80, 40),
                                 ),
@@ -247,7 +247,7 @@ class _OnDemandViewState extends ConsumerState<OnDemandView>
                             backgroundColor: locationPermissionsGranted
                                 ? null
                                 : context.colorScheme.error,
-                            padding: const EdgeInsets.symmetric(horizontal: 0),
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
                             minimumSize: const Size(80, 40),
                           ),
                           onPressed: _handleRequestLocationPermission,
