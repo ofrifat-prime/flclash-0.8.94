@@ -53,7 +53,7 @@ class CoreLib extends CoreHandlerInterface {
 
   @override
   Future<bool> startListener() async {
-    await super.stopListener();
+    await super.startListener();
     await service?.start();
     return true;
   }

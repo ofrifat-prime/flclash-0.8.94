@@ -60,6 +60,11 @@ class BuildAndroidCommand extends BuildCommand {
       valueHelp: 'arm,arm64,amd64',
       help: 'Target architecture (omit to build all)',
     );
+    argParser.addOption(
+      'target-platform',
+      valueHelp: 'android-arm,android-arm64,android-x64',
+      help: 'Flutter target platform list (omit to build all)',
+    );
   }
 
   @override
@@ -71,11 +76,13 @@ class BuildAndroidCommand extends BuildCommand {
   @override
   Future<void> runBuildCommand() async {
     final archName = argResults?['arch'] as String?;
+    final flutterTargetPlatforms = argResults?['target-platform'] as String?;
     final config = BuildConfig.load(rootDir: _rootDir);
 
-    final targets = Target.forPlatform('android')
-        .where((t) => archName == null || t.goarch == archName)
-        .toList();
+    final targets = Target.resolveAndroidTargets(
+      archName: archName,
+      flutterTargetPlatforms: flutterTargetPlatforms,
+    );
 
     final builder = GoBuilder(rootDir: _rootDir, config: config);
     final corePaths = await builder.buildAll(targets);
