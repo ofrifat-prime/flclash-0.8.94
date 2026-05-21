@@ -73,6 +73,43 @@ Future<List<Group>> _toGroupsTask(ComputeGroupsState state) async {
   );
 }
 
+const _ruleParams = {'no-resolve', 'src'};
+
+/// Fixes rules that are missing a TARGET field.
+///
+/// Some subscription sources produce rules like `IP-CIDR,192.133.76.0/22,no-resolve`
+/// where `no-resolve` is a parameter but the TARGET (proxy name) is missing.
+/// This inserts a default TARGET to prevent mihomo from treating the parameter
+/// as a proxy name.
+List<String> _fixRules(List<String> rules) {
+  String defaultTarget = 'DIRECT';
+  for (final rule in rules.reversed) {
+    final parts = rule.split(',');
+    final nonParams = parts.where((p) => !_ruleParams.contains(p)).toList();
+    if (nonParams.isNotEmpty && nonParams.first == 'MATCH') {
+      if (nonParams.length >= 2 && nonParams.last.isNotEmpty) {
+        defaultTarget = nonParams.last;
+      }
+      break;
+    }
+  }
+
+  return rules.map((rule) {
+    final parts = rule.split(',');
+    final nonParams = parts.where((p) => !_ruleParams.contains(p)).toList();
+    if (nonParams.length < 2) return rule;
+    final first = nonParams.first;
+    final isMatch = first == 'MATCH';
+    final isSubRule = first == 'SUB-RULE';
+    if (isMatch || isSubRule) return rule;
+    // A well-formed rule has at least: TYPE, CONTENT, TARGET (3 non-param parts)
+    if (nonParams.length >= 3) return rule;
+    // Missing TARGET: nonParams is [TYPE, CONTENT]. Insert defaultTarget.
+    final params = parts.where((p) => _ruleParams.contains(p)).toList();
+    return [...nonParams, defaultTarget, ...params].join(',');
+  }).toList();
+}
+
 Future<Map<String, dynamic>> makeRealProfileTask(
   MakeRealProfileState data,
 ) async {
@@ -214,6 +251,7 @@ Future<Map<String, dynamic>> _makeRealProfileTask(
     rules = List<String>.from(rawConfig['rules']);
   }
   rawConfig.remove('rules');
+  rules = _fixRules(rules);
   if (addedRules.isNotEmpty) {
     final parsedNewRules = addedRules
         .map((item) => ParsedRule.parseString(item.value))
