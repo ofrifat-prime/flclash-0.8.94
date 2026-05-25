@@ -229,8 +229,8 @@ class ProfileItem extends StatelessWidget {
       const SizedBox(height: 8),
       if (subscriptionInfo != null)
         SubscriptionInfoView(subscriptionInfo: subscriptionInfo),
-      Text(
-        profile.lastUpdateDate?.getLastUpdateTimeDesc(context) ?? '',
+      LastUpdateTimeText(
+        lastUpdateDate: profile.lastUpdateDate,
         style: context.textTheme.labelMedium?.toLighter,
       ),
     ];
@@ -239,8 +239,8 @@ class ProfileItem extends StatelessWidget {
   List<Widget> _buildFileProfileInfo(BuildContext context) {
     return [
       const SizedBox(height: 8),
-      Text(
-        profile.lastUpdateDate?.getLastUpdateTimeDesc(context) ?? '',
+      LastUpdateTimeText(
+        lastUpdateDate: profile.lastUpdateDate,
         style: context.textTheme.labelMedium?.toLight,
       ),
     ];
@@ -423,6 +423,33 @@ class ProfileItem extends StatelessWidget {
         ),
         tileTitleAlignment: ListTileTitleAlignment.titleHeight,
       ),
+    );
+  }
+}
+
+class LastUpdateTimeText extends StatelessWidget {
+  final DateTime? lastUpdateDate;
+  final TextStyle? style;
+
+  const LastUpdateTimeText({
+    super.key,
+    required this.lastUpdateDate,
+    this.style,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (lastUpdateDate == null) {
+      return Text('', style: style);
+    }
+    return TickBuilder(
+      duration: const Duration(minutes: 1),
+      builder: (context, _) {
+        return Text(
+          lastUpdateDate!.getLastUpdateTimeDesc(context),
+          style: style,
+        );
+      },
     );
   }
 }

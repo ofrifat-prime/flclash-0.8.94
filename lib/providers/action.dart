@@ -877,7 +877,6 @@ class ProfilesAction extends _$ProfilesAction {
   void putProfile(Profile profile) {
     ref.read(profilesProvider.notifier).put(profile);
     if (ref.read(currentProfileIdProvider) != null) return;
-    print('update===>data');
     ref.read(currentProfileIdProvider.notifier).value = profile.id;
   }
 
