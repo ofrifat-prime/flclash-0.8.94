@@ -10,9 +10,17 @@ on:
 
 env:
   GO_VERSION: '1.24'
-  FLUTTER_VERSION: '3.32.0'          # SDK >= 3.8.0 চাই (pubspec.yaml অনুযায়ী)
-  NDK_VERSION: '28.0.13004108'        # libs.versions.toml থেকে
-  JAVA_VERSION: '17'                  # build.gradle.kts → JVM_17
+  # ⚠️  stable channel USE করা যাবে না।
+  #     Project Dart SDK >=3.8.0 require করে (pubspec.yaml),
+  #     কিন্তু Flutter 3.32 stable = Dart 3.7.x।
+  #     এই project Flutter master channel-এর নতুন API use করে:
+  #       • RadioGroup widget            (master only)
+  #       • AppBar(animateColor: true)   (master only)
+  #       • NavigationRail(scrollable:)  (master only)
+  #       • Icon(fontWeight:)            (master only)
+  FLUTTER_CHANNEL: master
+  NDK_VERSION: '28.0.13004108'   # android/gradle/libs.versions.toml
+  JAVA_VERSION: '17'             # build.gradle.kts → JVM_17
 
 jobs:
   build-android-arm64:
@@ -41,13 +49,18 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
           cache-dependency-path: core/go.sum
 
-      # ── 4. Flutter ────────────────────────────────────────────────────────
-      - name: Set up Flutter ${{ env.FLUTTER_VERSION }}
+      # ── 4. Flutter master channel ─────────────────────────────────────────
+      #   version pin নেই — latest master নেবে (Dart 3.8.0+ দরকার)
+      - name: Set up Flutter (master channel)
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: stable
+          channel: ${{ env.FLUTTER_CHANNEL }}
           cache: true
+
+      - name: Verify Flutter & Dart versions
+        run: |
+          flutter --version
+          dart --version
 
       # ── 5. Android SDK + NDK ──────────────────────────────────────────────
       - name: Set up Android SDK & NDK
@@ -60,10 +73,10 @@ jobs:
 
       # ── 6. Android Keystore (Secrets থেকে) ───────────────────────────────
       #   Repository Secrets-এ সেট করতে হবে:
-      #     KEYSTORE_BASE64   → base64 encoded .jks file
-      #     STORE_PASSWORD    → keystore password
-      #     KEY_ALIAS         → key alias
-      #     KEY_PASSWORD      → key password
+      #     KEYSTORE_BASE64  → base64 -w 0 your.jks
+      #     STORE_PASSWORD   → keystore password
+      #     KEY_ALIAS        → key alias
+      #     KEY_PASSWORD     → key password
       - name: Set up signing keystore
         if: ${{ github.event_name != 'pull_request' }}
         run: |
@@ -74,7 +87,7 @@ jobs:
           keyPassword=${{ secrets.KEY_PASSWORD }}
           EOF
 
-      # ── 7. Go dependency cache ─────────────────────────────────────────────
+      # ── 7. Go dependency cache ────────────────────────────────────────────
       - name: Cache Go modules
         uses: actions/cache@v4
         with:
@@ -85,7 +98,8 @@ jobs:
           restore-keys: go-${{ runner.os }}-
 
       # ── 8. Build libclash.so for arm64-v8a (CGO + Android NDK) ───────────
-      #   core/build.gradle.kts expects: libclash/android/arm64-v8a/libclash.so
+      #   android/core/build.gradle.kts এর copyNativeLibs task এই path expect করে:
+      #   libclash/android/arm64-v8a/libclash.so
       - name: Build libclash.so (arm64-v8a)
         run: |
           TOOLCHAIN=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64
@@ -111,21 +125,20 @@ jobs:
           echo "✅ libclash.so built:"
           ls -lh ../libclash/android/arm64-v8a/
 
-      # ── 9. Flutter pub get + code generation ──────────────────────────────
+      # ── 9. Flutter pub get + code generation ─────────────────────────────
       - name: Flutter pub get
         run: flutter pub get
 
-      - name: Run build_runner (code generation)
+      - name: Run build_runner (freezed / riverpod / drift codegen)
         run: dart run build_runner build --delete-conflicting-outputs
 
-      # ── 10. Write local.properties (flutter SDK path) ─────────────────────
+      # ── 10. Write android/local.properties (flutter SDK path) ─────────────
       - name: Write android/local.properties
         run: |
-          # flutter.sdk পথ যোগ করি (signing block আগেই append করেছে)
           echo "flutter.sdk=$(which flutter | sed 's|/bin/flutter||')" >> android/local.properties
           echo "sdk.dir=$ANDROID_SDK_ROOT" >> android/local.properties
 
-      # ── 11. Build APK (arm64-v8a only) ────────────────────────────────────
+      # ── 11. Build APK (arm64-v8a only) ───────────────────────────────────
       - name: Build release APK (arm64-v8a)
         run: |
           flutter build apk \
