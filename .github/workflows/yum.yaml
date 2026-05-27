@@ -56,13 +56,19 @@ jobs:
       # PR-এ skip, debug key দিয়ে sign হবে।
       # Secret নাম: KEYSTORE (base64), STORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD
       - name: Set up signing keystore
-        if: ${{ github.event_name != 'pull_request' && secrets.KEYSTORE != '' }}
+        if: ${{ github.event_name != 'pull_request' }}
         env:
           KEYSTORE_B64: ${{ secrets.KEYSTORE }}
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
+          # Secret set না থাকলে skip (debug key দিয়ে build হবে)
+          if [ -z "$KEYSTORE_B64" ]; then
+            echo "⚠️ KEYSTORE secret not set — skipping signing, will use debug key"
+            exit 0
+          fi
+
           # base64 decode → keystore.jks
           echo "$KEYSTORE_B64" | base64 --decode > android/app/keystore.jks
 
