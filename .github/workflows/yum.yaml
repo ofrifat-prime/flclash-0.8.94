@@ -134,16 +134,34 @@ jobs:
           # Fix 1: material_color_utilities version pin
           sed -i 's/material_color_utilities: ^0.11.1/material_color_utilities: ^0.13.0/' pubspec.yaml
 
-          # Fix 2: re_editor 0.8.0 (pub.dev) Flutter master-এর নতুন
-          #   TextInputClient.onFocusReceived() implement করেনি।
-          #   git master থেকে নিতে হবে।
-          sed -i '/^  re_editor: /c\  re_editor:\n    git:\n      url: https://github.com/reqable/re-editor\n      ref: main' pubspec.yaml
-
-          echo "--- pubspec re_editor section ---"
-          grep -A4 "re_editor" pubspec.yaml
+          # re_editor এর git constraint সরিয়ে pub.dev version রাখি
+          # (patch করব pub get এর পরে)
+          sed -i 's|re_editor:.*|re_editor: ^0.8.0|' pubspec.yaml
 
       - name: Flutter pub get
         run: flutter pub get
+
+      # re_editor 0.8.0 এ DeltaTextInputClient.onFocusReceived() implement নেই।
+      # Flutter master এ এই method নতুন add হয়েছে — upstream এ এখনো fix নেই।
+      # pub cache এর source file সরাসরি patch করি।
+      - name: Patch re_editor for Flutter master compatibility
+        run: |
+          FILE=$(find ~/.pub-cache -path "*/re_editor-*/lib/src/_code_input.dart" | head -1)
+          if [ -z "$FILE" ]; then
+            echo "ERROR: _code_input.dart not found in pub cache"
+            find ~/.pub-cache -name "_code_input.dart" 2>/dev/null
+            exit 1
+          fi
+          echo "Patching: $FILE"
+
+          # _CodeInputController class এ onFocusReceived() method inject করি
+          # "implements DeltaTextInputClient {" এর পরের line এ add করব
+          sed -i '/implements DeltaTextInputClient {/a\  @override
+  bool onFocusReceived() => false;
+' "$FILE"
+
+          echo "Patch applied. Verifying:"
+          grep -A3 "onFocusReceived" "$FILE"
 
       - name: Run build_runner (freezed / riverpod / drift codegen)
         run: dart run build_runner build --delete-conflicting-outputs
