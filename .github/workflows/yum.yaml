@@ -19,7 +19,7 @@ env:
   #       • NavigationRail(scrollable:)  (master only)
   #       • Icon(fontWeight:)            (master only)
   FLUTTER_CHANNEL: master
-  NDK_VERSION: '28.0.13004108'   # android/gradle/libs.versions.toml
+  NDK_VERSION: '28.2.13676358'   # jni plugin এর জন্য highest version (28.2) দরকার
   JAVA_VERSION: '17'             # build.gradle.kts → JVM_17
 
 jobs:
@@ -68,6 +68,7 @@ jobs:
 
       - name: Install NDK ${{ env.NDK_VERSION }}
         run: |
+          # 28.2.13676358 install করি (jni plugin require করে, এটাই highest)
           echo "y" | sdkmanager "ndk;${{ env.NDK_VERSION }}"
           echo "NDK_HOME=$ANDROID_SDK_ROOT/ndk/${{ env.NDK_VERSION }}" >> $GITHUB_ENV
 
@@ -128,10 +129,18 @@ jobs:
       # ── 9. Flutter pub get + code generation ─────────────────────────────
       # material_color_utilities: Flutter master pins 0.13.0 কিন্তু pubspec-এ ^0.11.1
       # তাই pub get এর আগে constraint আপডেট করতে হবে
-      - name: Fix material_color_utilities constraint
+      - name: Fix pubspec constraints for Flutter master
         run: |
+          # Fix 1: material_color_utilities version pin
           sed -i 's/material_color_utilities: ^0.11.1/material_color_utilities: ^0.13.0/' pubspec.yaml
-          grep material_color_utilities pubspec.yaml
+
+          # Fix 2: re_editor 0.8.0 (pub.dev) Flutter master-এর নতুন
+          #   TextInputClient.onFocusReceived() implement করেনি।
+          #   git master থেকে নিতে হবে।
+          sed -i '/^  re_editor: /c\  re_editor:\n    git:\n      url: https://github.com/rechsteiner/re_editor\n      ref: main' pubspec.yaml
+
+          echo "--- pubspec re_editor section ---"
+          grep -A4 "re_editor" pubspec.yaml
 
       - name: Flutter pub get
         run: flutter pub get
@@ -146,13 +155,24 @@ jobs:
           echo "sdk.dir=$ANDROID_SDK_ROOT" >> android/local.properties
 
       # ── 11. Build APK (arm64-v8a only) ───────────────────────────────────
+      - name: Patch android ndkVersion to 28.2.13676358
+        run: |
+          # jni plugin সহ সব plugin-এর highest NDK = 28.2.13676358
+          # app/build.gradle.kts-এ ndkVersion override করি
+          sed -i '/ndkVersion = libs.versions.ndkVersion.get()/a\        ndkVersion = "28.2.13676358"' android/app/build.gradle.kts
+          # libs.versions.toml-এও update করি (core module-এর জন্য)
+          find android -name "libs.versions.toml" -exec sed -i 's/ndkVersion = "28.0.13004108"/ndkVersion = "28.2.13676358"/' {} \;
+          echo "NDK version patched:"
+          grep ndkVersion android/app/build.gradle.kts | head -3
+
       - name: Build release APK (arm64-v8a)
         run: |
           flutter build apk \
             --release \
             --target-platform android-arm64 \
             --split-per-abi \
-            --no-tree-shake-icons
+            --no-tree-shake-icons \
+            --android-skip-build-dependency-validation
 
       # ── 12. Rename APK ────────────────────────────────────────────────────
       - name: Rename APK
