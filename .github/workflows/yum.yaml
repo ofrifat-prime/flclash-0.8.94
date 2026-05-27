@@ -10,8 +10,8 @@ on:
 
 env:
   GO_VERSION: '1.24'
-  FLUTTER_CHANNEL: master        # Dart >=3.8.0 + RadioGroup/animateColor/Icon.fontWeight = master only
-  NDK_VERSION: '28.2.13676358'   # jni plugin এর জন্য highest version
+  FLUTTER_CHANNEL: master
+  NDK_VERSION: '28.2.13676358'
   JAVA_VERSION: '17'
 
 jobs:
@@ -52,16 +52,29 @@ jobs:
           echo "y" | sdkmanager "ndk;${{ env.NDK_VERSION }}"
           echo "NDK_HOME=$ANDROID_SDK_ROOT/ndk/${{ env.NDK_VERSION }}" >> $GITHUB_ENV
 
-      # Keystore — PR এ skip হবে, debug key দিয়ে sign হবে
+      # ── Keystore setup ────────────────────────────────────────────────────
+      # PR-এ skip, debug key দিয়ে sign হবে।
+      # Secret নাম: KEYSTORE (base64), STORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD
       - name: Set up signing keystore
-        if: ${{ github.event_name != 'pull_request' }}
+        if: ${{ github.event_name != 'pull_request' && secrets.KEYSTORE != '' }}
+        env:
+          KEYSTORE_B64: ${{ secrets.KEYSTORE }}
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/app/keystore.jks
-          cat >> android/local.properties << EOF2
-          storePassword=${{ secrets.STORE_PASSWORD }}
-          keyAlias=${{ secrets.KEY_ALIAS }}
-          keyPassword=${{ secrets.KEY_PASSWORD }}
-          EOF2
+          # base64 decode → keystore.jks
+          echo "$KEYSTORE_B64" | base64 --decode > android/app/keystore.jks
+
+          # Validate: corrupt হলে এখানেই fail করবে, build এ গিয়ে নয়
+          keytool -list -keystore android/app/keystore.jks \
+            -storepass "$STORE_PASSWORD" -noprompt
+          echo "✅ Keystore valid"
+
+          # local.properties-এ sign info লেখো (leading space ছাড়া)
+          printf "keyAlias=%s\nstorePassword=%s\nkeyPassword=%s\n" \
+            "$KEY_ALIAS" "$STORE_PASSWORD" "$KEY_PASSWORD" \
+            >> android/local.properties
 
       - name: Cache Go modules
         uses: actions/cache@v4
@@ -73,11 +86,6 @@ jobs:
           restore-keys: go-${{ runner.os }}-
 
       # ── Go core build ────────────────────────────────────────────────────
-      # android/core/build.gradle.kts এর copyNativeLibs task expect করে:
-      #   libclash/android/arm64-v8a/libclash.so
-      #   libclash/android/includes/arm64-v8a/libclash.h   (Go build output)
-      #   libclash/android/includes/arm64-v8a/bride.h      (core/bride.h — manually written)
-      # copyNativeLibs → jniLibs/ এ copy করে, তারপর includes/ → src/main/cpp/includes/ এ move করে
       - name: Build libclash.so + headers (arm64-v8a)
         run: |
           TOOLCHAIN=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64
@@ -109,8 +117,6 @@ jobs:
           find ../libclash/android -type f | sort
 
       # ── pubspec fixes ────────────────────────────────────────────────────
-      # 1. material_color_utilities: Flutter master pins 0.13.0, pubspec has ^0.11.1
-      # 2. re_editor: pub.dev 0.8.0 এ onFocusReceived() নেই, pub get এর পরে patch করব
       - name: Fix pubspec constraints
         run: |
           sed -i 's/material_color_utilities: \^0\.11\.1/material_color_utilities: ^0.13.0/' pubspec.yaml
@@ -118,9 +124,6 @@ jobs:
       - name: Flutter pub get
         run: flutter pub get
 
-      # re_editor 0.8.0 Flutter master এ compile হয় না:
-      # DeltaTextInputClient.onFocusReceived() implement নেই।
-      # pub cache এ source patch করি — script base64 embed করা (YAML newline issue avoid)
       - name: Patch re_editor onFocusReceived
         run: |
           FILE=$(find ~/.pub-cache -path "*/re_editor-*/lib/src/_code_input.dart" | head -1)
@@ -134,10 +137,10 @@ jobs:
       # ── Android project patches ──────────────────────────────────────────
       - name: Patch android NDK + local.properties
         run: |
-          # libs.versions.toml: ndkVersion 28.0 → 28.2 (jni plugin requires 28.2)
+          # libs.versions.toml: ndkVersion 28.0 → 28.2
           find android -name "libs.versions.toml" \
             -exec sed -i 's/ndkVersion = "28\.0\.13004108"/ndkVersion = "28.2.13676358"/' {} \;
-          # flutter SDK path
+          # Flutter SDK path + Android SDK path
           echo "flutter.sdk=$(which flutter | sed 's|/bin/flutter||')" >> android/local.properties
           echo "sdk.dir=$ANDROID_SDK_ROOT" >> android/local.properties
 
