@@ -141,27 +141,17 @@ jobs:
       - name: Flutter pub get
         run: flutter pub get
 
-      # re_editor 0.8.0 এ DeltaTextInputClient.onFocusReceived() implement নেই।
-      # Flutter master এ এই method নতুন add হয়েছে — upstream এ এখনো fix নেই।
-      # pub cache এর source file সরাসরি patch করি।
+      # re_editor 0.8.0 এ Flutter master এর নতুন
+      # DeltaTextInputClient.onFocusReceived() implement নেই।
+      # Script base64 encode করে embed করা হয়েছে — YAML newline issue avoid করতে।
       - name: Patch re_editor for Flutter master compatibility
         run: |
           FILE=$(find ~/.pub-cache -path "*/re_editor-*/lib/src/_code_input.dart" | head -1)
-          if [ -z "$FILE" ]; then
-            echo "ERROR: _code_input.dart not found in pub cache"
-            find ~/.pub-cache -name "_code_input.dart" 2>/dev/null
-            exit 1
-          fi
-          echo "Patching: $FILE"
+          [ -z "$FILE" ] && echo "ERROR: _code_input.dart not found" && exit 1
+          echo "aW1wb3J0IHN5cwpwYXRoID0gc3lzLmFyZ3ZbMV0KbWFya2VyID0gImltcGxlbWVudHMgRGVsdGFUZXh0SW5wdXRDbGllbnQgeyIKaW5qZWN0ID0gIiAgQG92ZXJyaWRlCiAgYm9vbCBvbkZvY3VzUmVjZWl2ZWQoKSA9PiBmYWxzZTsKIgp3aXRoIG9wZW4ocGF0aCkgYXMgZjoKICAgIHNyYyA9IGYucmVhZCgpCmlmICJvbkZvY3VzUmVjZWl2ZWQiIG5vdCBpbiBzcmM6CiAgICBzcmMgPSBzcmMucmVwbGFjZShtYXJrZXIsIG1hcmtlciArICIKIiArIGluamVjdCkKICAgIHdpdGggb3BlbihwYXRoLCAidyIpIGFzIGY6CiAgICAgICAgZi53cml0ZShzcmMpCiAgICBwcmludCgiUGF0Y2hlZDoiLCBwYXRoKQplbHNlOgogICAgcHJpbnQoIkFscmVhZHkgcGF0Y2hlZCIpCgo=" | base64 -d > /tmp/patch_re_editor.py
+          python3 /tmp/patch_re_editor.py "$FILE"
+          grep -A2 "onFocusReceived" "$FILE" || true
 
-          # _CodeInputController class এ onFocusReceived() method inject করি
-          # "implements DeltaTextInputClient {" এর পরের line এ add করব
-          sed -i '/implements DeltaTextInputClient {/a\  @override
-  bool onFocusReceived() => false;
-' "$FILE"
-
-          echo "Patch applied. Verifying:"
-          grep -A3 "onFocusReceived" "$FILE"
 
       - name: Run build_runner (freezed / riverpod / drift codegen)
         run: dart run build_runner build --delete-conflicting-outputs
