@@ -137,7 +137,7 @@ jobs:
           # Fix 2: re_editor 0.8.0 (pub.dev) Flutter master-এর নতুন
           #   TextInputClient.onFocusReceived() implement করেনি।
           #   git master থেকে নিতে হবে।
-          sed -i '/^  re_editor: /c\  re_editor:\n    git:\n      url: https://github.com/rechsteiner/re_editor\n      ref: main' pubspec.yaml
+          sed -i '/^  re_editor: /c\  re_editor:\n    git:\n      url: https://github.com/reqable/re-editor\n      ref: main' pubspec.yaml
 
           echo "--- pubspec re_editor section ---"
           grep -A4 "re_editor" pubspec.yaml
