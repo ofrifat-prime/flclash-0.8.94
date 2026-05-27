@@ -10,17 +10,9 @@ on:
 
 env:
   GO_VERSION: '1.24'
-  # ⚠️  stable channel USE করা যাবে না।
-  #     Project Dart SDK >=3.8.0 require করে (pubspec.yaml),
-  #     কিন্তু Flutter 3.32 stable = Dart 3.7.x।
-  #     এই project Flutter master channel-এর নতুন API use করে:
-  #       • RadioGroup widget            (master only)
-  #       • AppBar(animateColor: true)   (master only)
-  #       • NavigationRail(scrollable:)  (master only)
-  #       • Icon(fontWeight:)            (master only)
-  FLUTTER_CHANNEL: master
-  NDK_VERSION: '28.2.13676358'   # jni plugin এর জন্য highest version (28.2) দরকার
-  JAVA_VERSION: '17'             # build.gradle.kts → JVM_17
+  FLUTTER_CHANNEL: master        # Dart >=3.8.0 + RadioGroup/animateColor/Icon.fontWeight = master only
+  NDK_VERSION: '28.2.13676358'   # jni plugin এর জন্য highest version
+  JAVA_VERSION: '17'
 
 jobs:
   build-android-arm64:
@@ -28,67 +20,49 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      # ── 1. Checkout (submodule সহ — core/Clash.Meta দরকার) ────────────────
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           submodules: recursive
           fetch-depth: 0
 
-      # ── 2. Java 17 ────────────────────────────────────────────────────────
       - name: Set up JDK ${{ env.JAVA_VERSION }}
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: ${{ env.JAVA_VERSION }}
 
-      # ── 3. Go (CGO দিয়ে libclash.so বানাবে) ─────────────────────────────
       - name: Set up Go ${{ env.GO_VERSION }}
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
           cache-dependency-path: core/go.sum
 
-      # ── 4. Flutter master channel ─────────────────────────────────────────
-      #   version pin নেই — latest master নেবে (Dart 3.8.0+ দরকার)
       - name: Set up Flutter (master channel)
         uses: subosito/flutter-action@v2
         with:
           channel: ${{ env.FLUTTER_CHANNEL }}
           cache: true
 
-      - name: Verify Flutter & Dart versions
-        run: |
-          flutter --version
-          dart --version
-
-      # ── 5. Android SDK + NDK ──────────────────────────────────────────────
-      - name: Set up Android SDK & NDK
+      - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
       - name: Install NDK ${{ env.NDK_VERSION }}
         run: |
-          # 28.2.13676358 install করি (jni plugin require করে, এটাই highest)
           echo "y" | sdkmanager "ndk;${{ env.NDK_VERSION }}"
           echo "NDK_HOME=$ANDROID_SDK_ROOT/ndk/${{ env.NDK_VERSION }}" >> $GITHUB_ENV
 
-      # ── 6. Android Keystore (Secrets থেকে) ───────────────────────────────
-      #   Repository Secrets-এ সেট করতে হবে:
-      #     KEYSTORE_BASE64  → base64 -w 0 your.jks
-      #     STORE_PASSWORD   → keystore password
-      #     KEY_ALIAS        → key alias
-      #     KEY_PASSWORD     → key password
+      # Keystore — PR এ skip হবে, debug key দিয়ে sign হবে
       - name: Set up signing keystore
         if: ${{ github.event_name != 'pull_request' }}
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/app/keystore.jks
-          cat >> android/local.properties << EOF
+          cat >> android/local.properties << EOF2
           storePassword=${{ secrets.STORE_PASSWORD }}
           keyAlias=${{ secrets.KEY_ALIAS }}
           keyPassword=${{ secrets.KEY_PASSWORD }}
-          EOF
+          EOF2
 
-      # ── 7. Go dependency cache ────────────────────────────────────────────
       - name: Cache Go modules
         uses: actions/cache@v4
         with:
@@ -98,13 +72,15 @@ jobs:
           key: go-${{ runner.os }}-${{ hashFiles('core/go.sum') }}
           restore-keys: go-${{ runner.os }}-
 
-      # ── 8. Build libclash.so for arm64-v8a (CGO + Android NDK) ───────────
-      #   android/core/build.gradle.kts এর copyNativeLibs task এই path expect করে:
+      # ── Go core build ────────────────────────────────────────────────────
+      # android/core/build.gradle.kts এর copyNativeLibs task expect করে:
       #   libclash/android/arm64-v8a/libclash.so
-      - name: Build libclash.so (arm64-v8a)
+      #   libclash/android/includes/arm64-v8a/libclash.h   (Go build output)
+      #   libclash/android/includes/arm64-v8a/bride.h      (core/bride.h — manually written)
+      # copyNativeLibs → jniLibs/ এ copy করে, তারপর includes/ → src/main/cpp/includes/ এ move করে
+      - name: Build libclash.so + headers (arm64-v8a)
         run: |
           TOOLCHAIN=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64
-
           export CC=$TOOLCHAIN/bin/aarch64-linux-android23-clang
           export CXX=$TOOLCHAIN/bin/aarch64-linux-android23-clang++
           export CGO_ENABLED=1
@@ -112,14 +88,10 @@ jobs:
           export GOARCH=arm64
           export CGO_LDFLAGS="-Wl,-soname,libclash.so"
 
-          # copyNativeLibs task এর expected structure:
-          #   libclash/android/arm64-v8a/libclash.so
-          #   libclash/android/includes/arm64-v8a/libclash.h  ← CMake এর জন্য দরকার
           mkdir -p libclash/android/arm64-v8a
           mkdir -p libclash/android/includes/arm64-v8a
 
           cd core
-          # go build -buildmode=c-shared স্বয়ংক্রিয়ভাবে .h ও তৈরি করে
           go build \
             -buildmode=c-shared \
             -tags with_gvisor \
@@ -128,59 +100,46 @@ jobs:
             -o ../libclash/android/arm64-v8a/libclash.so \
             .
 
-          # Go এর তৈরি .h file টা includes ফোল্ডারে সরিয়ে রাখি
           mv ../libclash/android/arm64-v8a/libclash.h \
              ../libclash/android/includes/arm64-v8a/libclash.h
+          cp bride.h \
+             ../libclash/android/includes/arm64-v8a/bride.h
 
-          echo "✅ Output structure:"
+          echo "Output structure:"
           find ../libclash/android -type f | sort
 
-      # ── 9. Flutter pub get + code generation ─────────────────────────────
-      # material_color_utilities: Flutter master pins 0.13.0 কিন্তু pubspec-এ ^0.11.1
-      # তাই pub get এর আগে constraint আপডেট করতে হবে
-      - name: Fix pubspec constraints for Flutter master
+      # ── pubspec fixes ────────────────────────────────────────────────────
+      # 1. material_color_utilities: Flutter master pins 0.13.0, pubspec has ^0.11.1
+      # 2. re_editor: pub.dev 0.8.0 এ onFocusReceived() নেই, pub get এর পরে patch করব
+      - name: Fix pubspec constraints
         run: |
-          # Fix 1: material_color_utilities version pin
-          sed -i 's/material_color_utilities: ^0.11.1/material_color_utilities: ^0.13.0/' pubspec.yaml
-
-          # re_editor এর git constraint সরিয়ে pub.dev version রাখি
-          # (patch করব pub get এর পরে)
-          sed -i 's|re_editor:.*|re_editor: ^0.8.0|' pubspec.yaml
+          sed -i 's/material_color_utilities: \^0\.11\.1/material_color_utilities: ^0.13.0/' pubspec.yaml
 
       - name: Flutter pub get
         run: flutter pub get
 
-      # re_editor 0.8.0 এ Flutter master এর নতুন
+      # re_editor 0.8.0 Flutter master এ compile হয় না:
       # DeltaTextInputClient.onFocusReceived() implement নেই।
-      # Script base64 encode করে embed করা হয়েছে — YAML newline issue avoid করতে।
-      - name: Patch re_editor for Flutter master compatibility
+      # pub cache এ source patch করি — script base64 embed করা (YAML newline issue avoid)
+      - name: Patch re_editor onFocusReceived
         run: |
           FILE=$(find ~/.pub-cache -path "*/re_editor-*/lib/src/_code_input.dart" | head -1)
           [ -z "$FILE" ] && echo "ERROR: _code_input.dart not found" && exit 1
           echo "aW1wb3J0IHN5cwpwYXRoID0gc3lzLmFyZ3ZbMV0KbWFya2VyID0gImltcGxlbWVudHMgRGVsdGFUZXh0SW5wdXRDbGllbnQgeyIKaW5qZWN0ID0gIiAgQG92ZXJyaWRlXG4gIGJvb2wgb25Gb2N1c1JlY2VpdmVkKCkgPT4gZmFsc2U7XG4iCndpdGggb3BlbihwYXRoKSBhcyBmOgogICAgc3JjID0gZi5yZWFkKCkKaWYgIm9uRm9jdXNSZWNlaXZlZCIgbm90IGluIHNyYzoKICAgIHNyYyA9IHNyYy5yZXBsYWNlKG1hcmtlciwgbWFya2VyICsgIlxuIiArIGluamVjdCkKICAgIHdpdGggb3BlbihwYXRoLCAidyIpIGFzIGY6CiAgICAgICAgZi53cml0ZShzcmMpCiAgICBwcmludCgiUGF0Y2hlZDoiLCBwYXRoKQplbHNlOgogICAgcHJpbnQoIkFscmVhZHkgcGF0Y2hlZCIpCg==" | base64 -d > /tmp/patch_re_editor.py
           python3 /tmp/patch_re_editor.py "$FILE"
-          grep -A2 "onFocusReceived" "$FILE" || true
 
-
-      - name: Run build_runner (freezed / riverpod / drift codegen)
+      - name: Run build_runner
         run: dart run build_runner build --delete-conflicting-outputs
 
-      # ── 10. Write android/local.properties (flutter SDK path) ─────────────
-      - name: Write android/local.properties
+      # ── Android project patches ──────────────────────────────────────────
+      - name: Patch android NDK + local.properties
         run: |
+          # libs.versions.toml: ndkVersion 28.0 → 28.2 (jni plugin requires 28.2)
+          find android -name "libs.versions.toml" \
+            -exec sed -i 's/ndkVersion = "28\.0\.13004108"/ndkVersion = "28.2.13676358"/' {} \;
+          # flutter SDK path
           echo "flutter.sdk=$(which flutter | sed 's|/bin/flutter||')" >> android/local.properties
           echo "sdk.dir=$ANDROID_SDK_ROOT" >> android/local.properties
-
-      # ── 11. Build APK (arm64-v8a only) ───────────────────────────────────
-      - name: Patch android ndkVersion to 28.2.13676358
-        run: |
-          # jni plugin সহ সব plugin-এর highest NDK = 28.2.13676358
-          # app/build.gradle.kts-এ ndkVersion override করি
-          sed -i '/ndkVersion = libs.versions.ndkVersion.get()/a\        ndkVersion = "28.2.13676358"' android/app/build.gradle.kts
-          # libs.versions.toml-এও update করি (core module-এর জন্য)
-          find android -name "libs.versions.toml" -exec sed -i 's/ndkVersion = "28.0.13004108"/ndkVersion = "28.2.13676358"/' {} \;
-          echo "NDK version patched:"
-          grep ndkVersion android/app/build.gradle.kts | head -3
 
       - name: Build release APK (arm64-v8a)
         run: |
@@ -191,7 +150,6 @@ jobs:
             --no-tree-shake-icons \
             --android-skip-build-dependency-validation
 
-      # ── 12. Rename APK ────────────────────────────────────────────────────
       - name: Rename APK
         run: |
           VERSION=$(grep '^version:' pubspec.yaml | awk '{print $2}' | cut -d'+' -f1)
@@ -201,7 +159,6 @@ jobs:
           echo "APK_NAME=FlClash-${VERSION}-arm64.apk" >> $GITHUB_ENV
           echo "APK_VERSION=${VERSION}" >> $GITHUB_ENV
 
-      # ── 13. Upload artifact (সব build-এ) ─────────────────────────────────
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
@@ -209,7 +166,6 @@ jobs:
           path: dist/${{ env.APK_NAME }}
           retention-days: 14
 
-      # ── 14. GitHub Release (শুধু tag push-এ) ─────────────────────────────
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
