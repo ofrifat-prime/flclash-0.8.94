@@ -138,7 +138,8 @@ jobs:
         run: |
           flutter build apk --release --split-per-abi --target-platform android-arm64 \
             --build-name "${{ steps.vars.outputs.version_name }}" \
-            --build-number "${{ steps.vars.outputs.build_number }}"
+            --build-number "${{ steps.vars.outputs.build_number }}" \
+            --dart-define=APP_ENV=stable
 
       - name: Rename arm64 APK
         shell: bash
