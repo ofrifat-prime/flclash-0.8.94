@@ -251,7 +251,10 @@ class ApplicationSettingView extends StatelessWidget {
   Widget build(BuildContext context) {
     final List<Widget> items = [
       const MinimizeItem(),
-      if (system.isDesktop) ...[const AutoLaunchItem(), const SilentLaunchItem()],
+      if (system.isDesktop) ...[
+        const AutoLaunchItem(),
+        const SilentLaunchItem(),
+      ],
       const AutoRunItem(),
       if (system.isAndroid) ...[const HiddenItem()],
       const AnimateTabItem(),
@@ -262,16 +265,7 @@ class ApplicationSettingView extends StatelessWidget {
     ];
     return BaseScaffold(
       title: context.appLocalizations.application,
-      body: ListView.separated(
-        itemBuilder: (_, index) {
-          final item = items[index];
-          return item;
-        },
-        separatorBuilder: (_, _) {
-          return const Divider(height: 0);
-        },
-        itemCount: items.length,
-      ),
+      body: generateListView(items),
     );
   }
 }

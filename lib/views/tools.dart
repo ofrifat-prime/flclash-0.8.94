@@ -51,25 +51,7 @@ class _ToolViewState extends ConsumerState<ToolsView> {
     ];
   }
 
-  Widget _getOtherList(bool enableDeveloperMode) {
-    final items = [
-      const _DisclaimerItem(),
-      if (enableDeveloperMode) const _DeveloperItem(),
-      const _InfoItem(),
-    ];
-    return SurgeSection(
-      title: context.appLocalizations.other,
-      children: [
-        for (var index = 0; index < items.length; index++)
-          _SurgeTilePosition(
-            isLast: index == items.length - 1,
-            child: items[index],
-          ),
-      ],
-    );
-  }
-
-  Widget _getSettingList() {
+  Widget _getSettingList(bool enableDeveloperMode) {
     final items = [
       const _LocaleItem(),
       const _ThemeItem(),
@@ -80,6 +62,9 @@ class _ToolViewState extends ConsumerState<ToolsView> {
       const _ConfigItem(),
       const _AdvancedConfigItem(),
       const _SettingItem(),
+      const _DisclaimerItem(),
+      if (enableDeveloperMode) const _DeveloperItem(),
+      const _InfoItem(),
     ];
     return SurgeSection(
       title: context.appLocalizations.settings,
@@ -113,8 +98,7 @@ class _ToolViewState extends ConsumerState<ToolsView> {
           );
         },
       ),
-      _getSettingList(),
-      _getOtherList(vm2.b),
+      _getSettingList(vm2.b),
     ];
     final surge = SurgeTheme.of(context);
     return CommonScaffold(
@@ -385,6 +369,7 @@ class _DisclaimerItem extends ConsumerWidget {
     return _SurgeActionTile(
       leading: const Icon(Icons.gavel),
       title: context.appLocalizations.disclaimer,
+      subtitle: '查看使用前须知',
       onTap: () async {
         final isDisclaimerAccepted = await globalState.showDisclaimer();
         if (!isDisclaimerAccepted) {
@@ -403,6 +388,7 @@ class _InfoItem extends StatelessWidget {
     return _SurgeOpenTile(
       leading: const Icon(Icons.info),
       title: context.appLocalizations.about,
+      subtitle: '版本信息与项目链接',
       child: const AboutView(),
     );
   }

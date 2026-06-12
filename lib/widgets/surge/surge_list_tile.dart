@@ -36,7 +36,7 @@ class SurgeListTile extends StatelessWidget {
         : destructive
         ? surge.red
         : surge.textPrimary;
-    final minHeight = dense ? 52.0 : 60.0;
+    final minHeight = dense ? 52.0 : 64.0;
     final hasSubtitle = subtitle != null && subtitle!.isNotEmpty;
 
     return Material(
@@ -72,7 +72,7 @@ class SurgeListTile extends StatelessWidget {
                           : null,
                     ),
                     child: Padding(
-                      padding: const EdgeInsets.only(right: 12),
+                      padding: const EdgeInsets.only(right: 14),
                       child: Row(
                         children: [
                           Expanded(

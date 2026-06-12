@@ -137,6 +137,8 @@ class _ProfilesViewState extends State<ProfilesView> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         if (currentProfile != null) ...[
+                          const _ProfileSectionHeader(title: '当前订阅'),
+                          const SizedBox(height: 8),
                           _CurrentProfileSummary(
                             profile: currentProfile,
                             expanded: _isCurrentExpanded,
@@ -546,26 +548,6 @@ class _ProfileSortOption extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
         child: Row(
           children: [
-            Container(
-              width: 30,
-              height: 30,
-              decoration: BoxDecoration(
-                color: surge.textSecondary.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Center(
-                child: Text(
-                  '${index + 1}',
-                  style: context.textTheme.labelSmall?.copyWith(
-                    color: surge.textSecondary,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
             Expanded(
               child: Text(
                 profile.realLabel,
@@ -649,35 +631,24 @@ class _CurrentProfileSummaryState extends State<_CurrentProfileSummary> {
                 children: [
                   Expanded(
                     child: Text(
-                      '当前订阅',
+                      widget.profile.realLabel,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: context.textTheme.labelMedium?.copyWith(
-                        color: surge.textSecondary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
+                      style: context.textTheme.titleMedium?.copyWith(
+                        color: surge.textPrimary,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
                         letterSpacing: 0,
                       ),
                     ),
                   ),
+                  const SizedBox(width: 12),
                   _ProfilePill(
                     label: widget.profile.type.name,
                     color: surge.textSecondary,
                     filled: true,
                   ),
                 ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                widget.profile.realLabel,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: context.textTheme.titleMedium?.copyWith(
-                  color: surge.textPrimary,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0,
-                ),
               ),
               const SizedBox(height: 12),
               _CurrentProfileExpandButton(
@@ -1061,10 +1032,10 @@ class _ProfileDelayBadge extends ConsumerWidget {
 }
 
 class _ProfileSectionHeader extends StatelessWidget {
-  const _ProfileSectionHeader({required this.title, required this.count});
+  const _ProfileSectionHeader({required this.title, this.count});
 
   final String title;
-  final int count;
+  final int? count;
 
   @override
   Widget build(BuildContext context) {
@@ -1086,14 +1057,15 @@ class _ProfileSectionHeader extends StatelessWidget {
               ),
             ),
           ),
-          Text(
-            '$count',
-            style: context.textTheme.labelSmall?.copyWith(
-              color: surge.textSecondary,
-              fontSize: 12,
-              letterSpacing: 0,
+          if (count != null)
+            Text(
+              '$count',
+              style: context.textTheme.labelSmall?.copyWith(
+                color: surge.textSecondary,
+                fontSize: 12,
+                letterSpacing: 0,
+              ),
             ),
-          ),
         ],
       ),
     );

@@ -128,11 +128,6 @@ class ProxyCard extends StatelessWidget {
                         ),
                       ],
                     ),
-                    child: const Icon(
-                      Icons.check_rounded,
-                      color: Colors.white,
-                      size: 12,
-                    ),
                   ),
                 ),
               ),

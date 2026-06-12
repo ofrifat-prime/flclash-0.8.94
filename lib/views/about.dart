@@ -6,6 +6,7 @@ import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/state.dart';
 import 'package:fl_clash/widgets/list.dart';
 import 'package:fl_clash/widgets/scaffold.dart';
+import 'package:fl_clash/widgets/surge/surge.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -35,12 +36,12 @@ class AboutView extends StatelessWidget {
         .checkUpdateResultHandle(data: data, isUser: true);
   }
 
-  List<Widget> _buildMoreSection(BuildContext context) {
+  Widget _buildMoreSection(BuildContext context) {
     final appLocalizations = context.appLocalizations;
-    return generateSection(
-      separated: false,
+    return SurgeSection(
       title: appLocalizations.more,
-      items: [
+      margin: EdgeInsets.zero,
+      children: [
         ListItem(
           title: Text(appLocalizations.checkUpdate),
           onTap: () {
@@ -74,7 +75,7 @@ class AboutView extends StatelessWidget {
     );
   }
 
-  List<Widget> _buildContributorsSection(AppLocalizations appLocalizations) {
+  Widget _buildContributorsSection(AppLocalizations appLocalizations) {
     const contributors = [
       Contributor(
         avatar: 'assets/images/avatar/june2.jpg',
@@ -87,10 +88,10 @@ class AboutView extends StatelessWidget {
         link: 'https://t.me/xrcm6868',
       ),
     ];
-    return generateSection(
-      separated: false,
+    return SurgeSection(
       title: appLocalizations.otherContributors,
-      items: [
+      margin: EdgeInsets.zero,
+      children: [
         ListItem(
           title: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
@@ -110,69 +111,95 @@ class AboutView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final appLocalizations = context.appLocalizations;
-    final items = [
-      ListTile(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Consumer(
-              builder: (_, ref, _) {
-                return _DeveloperModeDetector(
-                  child: Wrap(
-                    spacing: 16,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Image.asset(
-                          'assets/images/icon.png',
-                          width: 64,
-                          height: 64,
-                        ),
-                      ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            appName,
-                            style: Theme.of(context).textTheme.headlineSmall,
-                          ),
-                          Text(
-                            globalState.packageInfo.version,
-                            style: Theme.of(context).textTheme.labelLarge,
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  onEnterDeveloperMode: () {
-                    ref
-                        .read(appSettingProvider.notifier)
-                        .update((state) => state.copyWith(developerMode: true));
-                    context.showNotifier(
-                      appLocalizations.developerModeEnableTip,
-                    );
-                  },
-                );
-              },
-            ),
-            const SizedBox(height: 24),
-            Text(
-              appLocalizations.desc,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
-        ),
-      ),
-      const SizedBox(height: 12),
-      ..._buildContributorsSection(appLocalizations),
-      ..._buildMoreSection(context),
-    ];
+    final surge = SurgeTheme.of(context);
     return BaseScaffold(
       title: appLocalizations.about,
-      body: Padding(
-        padding: kMaterialListPadding.copyWith(top: 16, bottom: 16),
-        child: generateListView(items),
+      body: ColoredBox(
+        color: surge.background,
+        child: ListView(
+          padding: EdgeInsets.fromLTRB(
+            16,
+            16,
+            16,
+            32 + MediaQuery.paddingOf(context).bottom,
+          ),
+          children: [
+            SurgeCard(
+              borderRadius: 18,
+              shadow: true,
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Consumer(
+                    builder: (_, ref, _) {
+                      return _DeveloperModeDetector(
+                        child: Row(
+                          children: [
+                            Image.asset(
+                              'assets/images/icon.png',
+                              width: 58,
+                              height: 58,
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    appName,
+                                    style: context.textTheme.titleLarge
+                                        ?.copyWith(
+                                          color: surge.textPrimary,
+                                          fontWeight: FontWeight.w800,
+                                          letterSpacing: 0,
+                                        ),
+                                  ),
+                                  const SizedBox(height: 5),
+                                  Text(
+                                    globalState.packageInfo.version,
+                                    style: context.textTheme.labelMedium
+                                        ?.copyWith(
+                                          color: surge.textSecondary,
+                                          letterSpacing: 0,
+                                        ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        onEnterDeveloperMode: () {
+                          ref
+                              .read(appSettingProvider.notifier)
+                              .update(
+                                (state) => state.copyWith(developerMode: true),
+                              );
+                          context.showNotifier(
+                            appLocalizations.developerModeEnableTip,
+                          );
+                        },
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    appLocalizations.desc,
+                    style: context.textTheme.bodySmall?.copyWith(
+                      color: surge.textSecondary,
+                      height: 1.35,
+                      letterSpacing: 0,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            _buildContributorsSection(appLocalizations),
+            const SizedBox(height: 16),
+            _buildMoreSection(context),
+          ],
+        ),
       ),
     );
   }
