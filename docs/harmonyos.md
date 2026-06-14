@@ -25,7 +25,7 @@ The current branch does not provide a runnable HarmonyOS port yet:
 
 ## Hard prerequisites
 
-This project is pinned to modern Flutter on the mainline, and the OpenHarmony Flutter toolchain is still published on separate branches/releases. In this environment a verified `.hap` was not produced because the currently available SDK combinations do not yet line up with this repository's Dart and Flutter constraints.
+This project is pinned to modern Flutter on the mainline, and the OpenHarmony Flutter toolchain is still published on separate branches/releases. Most published SDK combinations still do not line up cleanly with this repository's Dart and Flutter constraints, so a clean checkout should be expected to need toolchain validation before it builds.
 
 Before building, install and verify:
 
@@ -52,10 +52,8 @@ The following combinations were validated in this branch:
   - This is still below the repository requirement `>=3.8.0`
 - `oh-3.35.7-release`
   - Bundles Dart `3.9.2`, which is new enough for this repository
-  - The current published branch snapshot reports Flutter version `0.0.0-unknown` during pub version solving
-  - Because local plugins such as `plugins/setup` require Flutter `>=3.3.0`, `flutter pub get` still fails before dependency resolution can continue
-
-In this workspace, `oh-3.35.7-release` plus the OpenHarmony 6.0.2(22) SDK can produce a signed release HAP after the local hvigor wrapper prepares signing assets from the SDK-provided OpenHarmony demo keystore.
+  - The published branch snapshot may still report Flutter version `0.0.0-unknown` during pub version solving on some setups
+  - In this workspace, with a local `oh-3.35.7-release` checkout and OpenHarmony 6.0.2(22) SDK, the packaging scaffold produced a signed release HAP after the local hvigor wrapper prepared signing assets from the SDK-provided OpenHarmony demo keystore
 
 ## Recommended build path
 

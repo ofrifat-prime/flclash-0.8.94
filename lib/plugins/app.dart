@@ -93,17 +93,17 @@ class App {
   }
 
   Future<bool?> isBatteryOptimizationDisabled() async {
-    if (!system.isAndroid) return true;
+    if (!Platform.isAndroid) return true;
     return methodChannel.invokeMethod<bool>('isBatteryOptimizationDisabled');
   }
 
   Future<bool?> openBatteryOptimizationSettings() async {
-    if (!system.isAndroid) return false;
+    if (!Platform.isAndroid) return false;
     return methodChannel.invokeMethod<bool>('openBatteryOptimizationSettings');
   }
 
   Future<bool?> openAppSettings() async {
-    if (!system.isAndroid) return false;
+    if (!Platform.isAndroid) return false;
     return methodChannel.invokeMethod<bool>('openAppSettings');
   }
 }
