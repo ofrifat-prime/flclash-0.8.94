@@ -51,9 +51,21 @@ function loadPlugin() {
     )));
 }
 
+function unescapePropertyValue(value) {
+  return value
+      .replace(/\\\\/g, '\\')
+      .replace(/\\:/g, ':')
+      .replace(/\\=/g, '=')
+      .replace(/\\ /g, ' ');
+}
+
 function getFlutterSdkRoot() {
   const localPropertiesPath = path.join(__dirname, '..', 'local.properties');
   if (!fs.existsSync(localPropertiesPath)) {
+    const flutterSdk = process.env.FLUTTER_ROOT || process.env.FLUTTER_SDK || '';
+    if (flutterSdk) {
+      return flutterSdk;
+    }
     throw new Error(`Missing local.properties: ${localPropertiesPath}`);
   }
 
@@ -68,10 +80,14 @@ function getFlutterSdkRoot() {
     }
     const key = line.slice(0, index).trim();
     if (key === 'flutter.sdk') {
-      return line.slice(index + 1).trim();
+      return unescapePropertyValue(line.slice(index + 1).trim());
     }
   }
 
+  const flutterSdk = process.env.FLUTTER_ROOT || process.env.FLUTTER_SDK || '';
+  if (flutterSdk) {
+    return flutterSdk;
+  }
   throw new Error(`Missing flutter.sdk in ${localPropertiesPath}`);
 }
 
