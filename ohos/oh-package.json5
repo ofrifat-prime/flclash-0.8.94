@@ -19,7 +19,6 @@
     "setup": "file:./har/setup.har",
     "rust_api": "file:./har/rust_api.har",
     "proxy": "file:./har/proxy.har",
-    "@ohos/flutter_module": "file:./entry",
-    "flutter_native_arm64_v8a": "file:./har/flutter_native_arm64_v8a.har"
+    "@ohos/flutter_module": "file:./entry"
   }
 }

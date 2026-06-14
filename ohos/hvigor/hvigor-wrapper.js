@@ -230,16 +230,29 @@ function resolveFlutterNativeHar(flutterSdk) {
   return candidates.find((candidate) => fs.existsSync(candidate)) || '';
 }
 
-function ensureFlutterNativeHar(appHome, flutterSdk) {
-  const nativeHar = resolveFlutterNativeHar(flutterSdk);
-  if (!nativeHar) {
-    return;
+function patchOhosPackageForNativeHar(appHome, flutterSdk) {
+  const packagePath = path.join(appHome, 'oh-package.json5');
+  if (!fs.existsSync(packagePath)) {
+    return () => {};
   }
 
-  const targetHarDir = path.join(appHome, 'har');
-  const targetHarPath = path.join(targetHarDir, 'flutter_native_arm64_v8a.har');
-  fs.mkdirSync(targetHarDir, {recursive: true});
-  fs.copyFileSync(nativeHar, targetHarPath);
+  const nativeHar = resolveFlutterNativeHar(flutterSdk);
+  if (!nativeHar) {
+    return () => {};
+  }
+
+  const originalContent = fs.readFileSync(packagePath, 'utf8');
+  const packageConfig = JSON.parse(originalContent);
+  const overrides = {
+    ...(packageConfig.overrides || {}),
+    flutter_native_arm64_v8a: `file:${nativeHar}`,
+  };
+  packageConfig.overrides = overrides;
+  fs.writeFileSync(packagePath, `${JSON.stringify(packageConfig, null, 2)}\n`);
+
+  return () => {
+    fs.writeFileSync(packagePath, originalContent);
+  };
 }
 
 const upstreamWrapperPath = path.join(
@@ -271,12 +284,13 @@ prepareOpenHarmonySigningAssets({
   bundleName: 'com.follow.clash',
 });
 
-ensureFlutterNativeHar(appHome, flutterSdk);
 prepareBundledHvigorWorkspace();
 prepareNodePath();
+const restorePackage = patchOhosPackageForNativeHar(appHome, flutterSdk);
 const restoreFs = patchHvigorConfigForUpstreamWrapper();
 try {
   require(upstreamWrapperPath);
 } finally {
+  restorePackage();
   restoreFs();
 }
