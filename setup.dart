@@ -8,6 +8,7 @@ const _allTargets = <String, String>{
   'android': 'apk',
   'linux': 'deb', // appimage + rpm added for amd64 only
   'macos': 'dmg',
+  'ohos': 'hap',
   'windows': 'exe,zip',
 };
 
@@ -20,6 +21,7 @@ const _androidFlutterTarget = {
 const _hostPlatform = {
   'linux': 'linux',
   'macos': 'macos',
+  'ohos': 'ohos',
   'windows': 'windows',
 };
 
@@ -43,9 +45,9 @@ Future<void> main(List<String> args) async {
 
   final platform = rest.isNotEmpty ? rest.first : host;
 
-  if (platform != host && platform != 'android') {
+  if (platform != host && platform != 'android' && platform != 'ohos') {
     stderr.writeln(
-      'Cannot build "$platform" on $hostOs. Allowed: $host, android',
+      'Cannot build "$platform" on $hostOs. Allowed: $host, android, ohos',
     );
     _showHelp(parser);
     exit(1);
@@ -119,7 +121,7 @@ String _getTargets(String platform, String arch, String? customTargets) {
 
 void _showHelp(ArgParser parser) {
   stderr.writeln('Usage: dart setup.dart [platform] [options]');
-  stderr.writeln('Platform: current host platform (default) or android');
+  stderr.writeln('Platform: current host platform (default), android, or ohos');
   stderr.writeln();
   stderr.writeln('Default package targets:');
   _allTargets.forEach((p, t) => stderr.writeln('  $p: $t'));
@@ -136,6 +138,10 @@ Future<int> _package(
   String? androidArch,
   required bool verbose,
 }) async {
+  if (platform == 'ohos') {
+    return _packageOhos(rootDir, env, arch, verbose: verbose);
+  }
+
   final distributorDir = p.join(
     rootDir,
     'plugins',
@@ -161,7 +167,7 @@ Future<int> _package(
   final file = File(p.join(rootDir, 'env.json'));
 
   await file.writeAsString(
-    jsonEncode({'APP_ENV': env, 'CORE_SHA256': ?coreSha256}),
+    jsonEncode({'APP_ENV': env, 'CORE_SHA256': coreSha256}),
   );
 
   final flutterBuildArgs = createFlutterBuildArgs(
@@ -192,7 +198,7 @@ Future<int> _package(
       ...descriptionArgs,
     ],
     includeParentEnvironment: true,
-    environment: {'ANDROID_ARCH': ?androidArch},
+    environment: {if (androidArch != null) 'ANDROID_ARCH': androidArch},
     runInShell: Platform.isWindows,
   );
 
@@ -204,6 +210,120 @@ Future<int> _package(
   });
   final exitCode = await process.exitCode;
   return exitCode;
+}
+
+Future<int> _packageOhos(
+  String rootDir,
+  String env,
+  String arch, {
+  required bool verbose,
+}) async {
+  const flutterArch = 'ohos-arm64';
+  final envFile = File(p.join(rootDir, 'env.json'));
+  await envFile.writeAsString(
+    jsonEncode({'APP_ENV': env, 'CORE_SHA256': null}),
+  );
+
+  final buildArgs = <String>[
+    'build',
+    'hap',
+    '--target-platform',
+    flutterArch,
+    '--release',
+    '--dart-define-from-file=env.json',
+    if (verbose) '--verbose',
+  ];
+
+  final process = await Process.start(
+    _resolveFlutterExecutable(),
+    buildArgs,
+    includeParentEnvironment: true,
+    runInShell: Platform.isWindows,
+    workingDirectory: rootDir,
+  );
+
+  process.stdout.listen((data) {
+    stdout.write(utf8.decode(data));
+  });
+  process.stderr.listen((data) {
+    stderr.write(utf8.decode(data));
+  });
+
+  final exitCode = await process.exitCode;
+  if (exitCode != 0) return exitCode;
+
+  return _renameOhosArtifact(rootDir, flutterArch);
+}
+
+int _renameOhosArtifact(String rootDir, String flutterArch) {
+  final source = File(
+    p.join(
+      rootDir,
+      'ohos',
+      'entry',
+      'build',
+      'default',
+      'outputs',
+      'default',
+      'entry-default-signed.hap',
+    ),
+  );
+  if (!source.existsSync()) {
+    stderr.writeln('Signed HAP not found: ${source.path}');
+    return 1;
+  }
+
+  final version = _readAppVersion(rootDir);
+  final releaseArch = flutterArch.replaceFirst('ohos-', '');
+  final distDir = Directory(p.join(rootDir, 'dist'));
+  if (!distDir.existsSync()) {
+    distDir.createSync(recursive: true);
+  }
+
+  final target = File(
+    p.join(distDir.path, 'FlClash-$version-ohos-$releaseArch.hap'),
+  );
+  source.copySync(target.path);
+  stdout.writeln('Created release artifact: ${target.path}');
+  return 0;
+}
+
+String _readAppVersion(String rootDir) {
+  final pubspec = File(p.join(rootDir, 'pubspec.yaml'));
+  final versionLine = pubspec.readAsLinesSync().firstWhere(
+    (line) => line.startsWith('version: '),
+  );
+  return versionLine.substring('version: '.length).trim().split('+').first;
+}
+
+String _resolveFlutterExecutable() {
+  final flutterName = Platform.isWindows ? 'flutter.bat' : 'flutter';
+  final flutterRoot = Platform.environment['FLUTTER_ROOT'];
+  if (flutterRoot != null && flutterRoot.isNotEmpty) {
+    final flutterFromEnv = File(p.join(flutterRoot, 'bin', flutterName));
+    if (flutterFromEnv.existsSync()) {
+      return flutterFromEnv.path;
+    }
+  }
+
+  var current = File(Platform.resolvedExecutable).parent;
+  while (true) {
+    final directCandidate = File(p.join(current.path, flutterName));
+    if (directCandidate.existsSync()) {
+      return directCandidate.path;
+    }
+
+    final binCandidate = File(p.join(current.path, 'bin', flutterName));
+    if (binCandidate.existsSync()) {
+      return binCandidate.path;
+    }
+
+    final parent = current.parent;
+    if (parent.path == current.path) break;
+    current = parent;
+  }
+
+  return 'flutter';
 }
 
 Future<String?> _buildGoCore(String rootDir) async {

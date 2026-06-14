@@ -1,0 +1,449 @@
+/// @docImport 'package:flutter/gestures.dart';
+/// @docImport 'package:flutter/scheduler.dart';
+library;
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
+import 'package:flutter_test/flutter_test.dart' as t;
+import 'package:meta/meta.dart';
+
+export 'package:flutter_test/flutter_test.dart' hide find;
+
+/// [WidgetTesterX] version of `testWidgets` from package:flutter_test.
+@isTest
+void testWidgets(
+  String description,
+  Future<void> Function(WidgetTesterX) callback, {
+  t.TestVariant<Object?> variant = const t.DefaultTestVariant(),
+}) {
+  t.testWidgets(
+    description,
+    (t) => callback(WidgetTesterX(t)),
+    variant: variant,
+  );
+}
+
+/// Runs a test with a clock that can be programmatically advanced.
+///
+/// Use this method for testing objects that depend on the vsync such as
+/// [AnimationController]s.
+///
+/// ```dart
+/// testWithVsync('should animate the sheet position', (tester) async {
+///   final animationController = AnimationController(vsync: tester.vsync);
+///   await tester.elapse(const Duration(milliseconds: 100));
+///   expect(animationController.value, 0.5);
+/// });
+/// ```
+@isTest
+void testWithVsync(
+  String description,
+  Future<void> Function(VsyncTester) callback,
+) {
+  t.testWidgets(description, (tester) async {
+    final vsyncTester = VsyncTester(WidgetTesterX(tester));
+    try {
+      await tester.pump();
+      await callback(vsyncTester);
+    } finally {
+      vsyncTester._tearDown();
+    }
+  });
+}
+
+class VsyncTester {
+  VsyncTester(this._widgetTester);
+
+  final WidgetTesterX _widgetTester;
+  final List<VoidCallback> _tearDownCallbacks = [];
+
+  /// A [TickerProvider] whose [Ticker]s are advanced by [elapse] method.
+  final TickerProvider vsync = t.TestVSync();
+
+  /// Adds a callback to be executed at the end of the current test.
+  ///
+  /// Perefer this method over `addTearDown` from package:flutter_test
+  /// when you clean up resources that depend on the vsync such as
+  /// [AnimationController]s.
+  void addTearDown(VoidCallback callback) {
+    _tearDownCallbacks.add(callback);
+  }
+
+  void _tearDown() {
+    for (final callback in _tearDownCallbacks) {
+      callback();
+    }
+  }
+
+  /// Forwards the simulated clock by the given [duration].
+  Future<void> elapse(Duration duration) => _widgetTester.pump(duration);
+
+  /// Flushes microtasks without advancing the clock.
+  Future<void> flushMicrotasks() => _widgetTester.pump(null);
+}
+
+final find = FinderX(t.find);
+
+extension type FinderX(t.CommonFinders self) implements t.CommonFinders {
+  /// Finds a widget by its identifier.
+  ///
+  /// Equivalent to `find.byKey(ValueKey(id))`.
+  t.Finder byId(String id) => self.byKey(ValueKey(id));
+}
+
+extension type WidgetTesterX(t.WidgetTester self) implements t.WidgetTester {
+  /// Captures all errors thrown during the execution of [pumpWidget].
+  ///
+  /// This method covers the cases that [takeException] does not work,
+  /// such as when multiple errors are thrown during [pumpWidget].
+  Future<List<FlutterErrorDetails>> pumpWidgetAndCaptureErrors(
+    Widget widget,
+  ) async {
+    final errors = <FlutterErrorDetails>[];
+    final oldHandler = FlutterError.onError;
+    FlutterError.onError = errors.add;
+
+    try {
+      await pumpWidget(widget);
+    } finally {
+      FlutterError.onError = oldHandler;
+    }
+
+    return errors;
+  }
+
+  /// Captures all errors thrown during the execution of [pumpAndSettle].
+  ///
+  /// This method covers the cases that [takeException] does not work,
+  /// such as when multiple errors are thrown during [pumpAndSettle].
+  Future<List<FlutterErrorDetails>> pumpAndSettleAndCaptureErrors([
+    Duration duration = const Duration(milliseconds: 100),
+    t.EnginePhase phase = t.EnginePhase.sendSemanticsUpdate,
+    Duration timeout = const Duration(minutes: 10),
+  ]) async {
+    final errors = <FlutterErrorDetails>[];
+    final oldHandler = FlutterError.onError;
+    FlutterError.onError = errors.add;
+
+    try {
+      await pumpAndSettle(duration, phase, timeout);
+    } finally {
+      FlutterError.onError = oldHandler;
+    }
+
+    return errors;
+  }
+
+  /// A strict version of WidgetTester.tap that throws an error
+  /// when a tap is missed.
+  ///
+  /// The error thrown can be obtained from [takeException] for further
+  /// verification. See [this issue](https://github.com/flutter/flutter/issues/151965#issuecomment-2239515523)
+  /// for more information.
+  @pragma('vm:notify-debugger-on-exception')
+  @isTest
+  // ignore: experimental_member_use
+  @redeclare
+  Future<void> tap(t.Finder finder) async {
+    try {
+      await self.tap(finder, warnIfMissed: true);
+      // ignore: avoid_catching_errors
+    } on Error catch (error, stackTrace) {
+      // Forward the error to Flutter.onError
+      FlutterError.reportError(
+        FlutterErrorDetails(exception: error, stack: stackTrace),
+      );
+    }
+  }
+
+  /// performs hit test at the given [location] and throws an error if the
+  /// widget specified by the [target] would not receive pointer events at that
+  /// location.
+  ///
+  /// The error thrown can be obtained from [takeException] for further
+  /// verification. For example, the following tests verify that a [Container]
+  /// can receive pointer events at `(100, 100)` but not at `(10, 10)`:
+  ///
+  /// ```dart
+  /// await tester.hitTestAt(Offset(100, 100), target: find.byType(Container));
+  /// expect(tester.takeException(), isNull);
+  ///
+  /// await tester.hitTestAt(Offset(10, 10), target: find.byType(Container));
+  /// expect(tester.takeException(), isA<FlutterError>());
+  /// ```
+  @pragma('vm:notify-debugger-on-exception')
+  void hitTestAt(Offset location, {required t.FinderBase<Element> target}) {
+    t.TestAsyncUtils.guardSync();
+    RenderBox? box;
+    try {
+      box = renderObject(target) as RenderBox;
+      // ignore: avoid_catching_errors
+    } on FlutterError catch (error, stackTrace) {
+      FlutterError.reportError(
+        FlutterErrorDetails(exception: error, stack: stackTrace),
+      );
+    }
+
+    if (box == null) {
+      return;
+    }
+
+    final viewFinder = t.find.ancestor(
+      of: target,
+      matching: t.find.byType(View),
+    );
+    final view = firstWidget<View>(viewFinder).view;
+    final result = HitTestResult();
+    binding.hitTestInView(result, location, view.viewId);
+    final found = result.path.any((entry) => entry.target == box);
+
+    if (found) {
+      return;
+    }
+
+    final renderView = binding.renderViews.firstWhere(
+      (r) => r.flutterView == view,
+    );
+    final outOfBounds = !(Offset.zero & renderView.size).contains(location);
+
+    FlutterError.reportError(
+      FlutterErrorDetails(
+        exception: FlutterError.fromParts(<DiagnosticsNode>[
+          ErrorSummary(
+            'Finder specifies a widget that '
+            'would not receive pointer events.',
+          ),
+          ErrorDescription(
+            'The widget specified by the finder "$target" would not '
+            'receive pointer events at the given location "$location".',
+          ),
+          ErrorHint(
+            'Maybe the widget is actually off-screen, or another widget is '
+            'obscuring it, or the widget cannot receive pointer events.',
+          ),
+          if (outOfBounds)
+            ErrorHint(
+              'Indeed, $location is outside the bounds of the root '
+              'of the render tree, ${renderView.size}.',
+            ),
+          box.toDiagnosticsNode(
+            name: 'The finder corresponds to this RenderBox',
+            style: DiagnosticsTreeStyle.singleLine,
+          ),
+          ErrorDescription('The hit test result at that offset is: $result'),
+        ]),
+        stack: StackTrace.current,
+      ),
+    );
+  }
+
+  /// Initiates a drag gesture at the specified [downLocation],
+  /// moving the pointer by [t.kDragSlopDefault] pixels in the
+  /// direction of [axisDirection].
+  ///
+  /// For example, if [axisDirection] is [AxisDirection.down],
+  /// the gesture moves the pointer downward by [t.kDragSlopDefault] pixels.
+  ///
+  /// This method emits a pointer-down event and a drag-start event but
+  /// does not generate drag-update events.
+  /// Use [t.TestGesture.moveBy] on the returned [t.TestGesture]
+  /// to generate subsequent drag-update events.
+  Future<t.TestGesture> startDrag(
+    Offset downLocation, [
+    AxisDirection axisDirection = AxisDirection.down,
+  ]) async {
+    final gesture = await self.startGesture(downLocation);
+    switch (axisDirection) {
+      case AxisDirection.down:
+        await gesture.moveBy(const Offset(0, t.kDragSlopDefault));
+      case AxisDirection.up:
+        await gesture.moveBy(const Offset(0, -t.kDragSlopDefault));
+      case AxisDirection.right:
+        await gesture.moveBy(const Offset(t.kDragSlopDefault, 0));
+      case AxisDirection.left:
+        await gesture.moveBy(const Offset(-t.kDragSlopDefault, 0));
+    }
+    return gesture;
+  }
+
+  /// Attempts to drag the given widget upward by the given [deltaY],
+  /// by starting a drag in the middle of the widget.
+  ///
+  /// {@template WidgetTesterX.dragUpward}
+  /// The target widget may not fully receive the specified drag delta if
+  /// there are multiple gesture recognizers in the hit-test path (e.g.,
+  /// a [DragGestureRecognizer] for the scrollable). For example, if the target
+  /// widget is a scrollable and there is a clickable button on the center of
+  /// that scrollable, the delta it receives will be reduced by
+  /// [t.kDragSlopDefault]. This is because:
+  ///
+  /// 1. the test environment initiates a pointer down event at the center of
+  ///    the scrollable, which is also the center of the button. Since there are
+  ///    at least two gesture recognizers, no one has won the gesture arena at
+  ///    this point.
+  /// 2. As stated in the documentation of [drag], the test environment splits
+  ///    the drag delta into two segments ([t.kDragSlopDefault] and the rest)
+  ///    and sequentially emits them as separate pointer move events.
+  /// 3. When the first pointer move event is dispatched, the recognizer of the
+  ///    scrollable wins the gesture arena, causing a gesture callback to be
+  ///    triggered (e.g., the [DragGestureRecognizer]'s onStart callback).
+  ///    Note that the fist segment of the drag delta ([t.kDragSlopDefault]) is
+  ///    consumed at this point, but the recognizer cannot know this value since
+  ///    [DragStartDetails] does not include the drag delta.
+  /// 4. The subsequent pointer move event then triggers the onUpdate callback
+  ///    of the [DragGestureRecognizer] with the rest of the drag delta. This is
+  ///    the first time the recognizer receives the drag delta, but the value is
+  ///    reduced by [t.kDragSlopDefault] (due to the step 3).
+  ///
+  /// If there is only one gesture recognizer in the hit-test path,
+  /// the recognizer wons the gesture arena immediately at the pointer down
+  /// event (step 1 above, the onStart is also triggered at this point) and
+  /// receives both the drag segments from the subsequent pointer move events.
+  /// In this case, the target scrollable can consume the entire drag delta.
+  ///
+  /// Setting [includeDragSlop] to true automatically adds [t.kDragSlopDefault]
+  /// to the drag delta, which ensures that the target widget receives the
+  /// entire [deltaY]. Use this flag with caution, as the target widget will
+  /// simply receive [deltaY] plus [t.kDragSlopDefault] if there is only one
+  /// gesture recognizer in the hit-test path as described above.
+  /// {@endtemplate}
+  Future<void> dragUpward(
+    t.FinderBase<Element> finder, {
+    required double deltaY,
+    bool includeDragSlop = false,
+  }) => drag(
+    finder,
+    Offset(0, includeDragSlop ? -deltaY - t.kDragSlopDefault : -deltaY),
+  );
+
+  /// Attempts to drag the given widget downward by the given [deltaY],
+  /// by starting a drag in the middle of the widget.
+  ///
+  /// {@macro WidgetTesterX.dragUpward}
+  Future<void> dragDownward(
+    t.FinderBase<Element> finder, {
+    required double deltaY,
+    bool includeDragSlop = false,
+  }) => drag(
+    finder,
+    Offset(0, includeDragSlop ? deltaY + t.kDragSlopDefault : deltaY),
+  );
+
+  /// Simulates sending a platform message to notify the start of
+  /// Android's predictive back gesture.
+  ///
+  /// Calling this method will cause
+  /// [WidgetsBindingObserver.handleStartBackGesture] to be invoked
+  /// by the framework.
+  Future<void> startAndroidBackGesture({
+    required List<double> touchOffset,
+    double progress = 0.0,
+    int swipeEdge = 0,
+  }) async {
+    await self.binding.defaultBinaryMessenger.handlePlatformMessage(
+      'flutter/backgesture',
+      const StandardMethodCodec().encodeMethodCall(
+        MethodCall('startBackGesture', <String, dynamic>{
+          'touchOffset': touchOffset,
+          'progress': progress,
+          'swipeEdge': swipeEdge,
+        }),
+      ),
+      (ByteData? _) {},
+    );
+  }
+
+  /// Simulates sending a platform message to notify the progress of
+  /// Android's predictive back gesture.
+  ///
+  /// Calling this method will cause
+  /// [WidgetsBindingObserver.handleUpdateBackGestureProgress] to be invoked
+  /// by the framework.
+  Future<void> updateAndroidBackGestureProgress({
+    required double x,
+    required double y,
+    required double progress,
+    int swipeEdge = 0,
+  }) async {
+    await self.binding.defaultBinaryMessenger.handlePlatformMessage(
+      'flutter/backgesture',
+      const StandardMethodCodec().encodeMethodCall(
+        MethodCall('updateBackGestureProgress', <String, dynamic>{
+          'x': x,
+          'y': y,
+          'progress': progress,
+          'swipeEdge': swipeEdge,
+        }),
+      ),
+      (ByteData? _) {},
+    );
+  }
+
+  /// Simulates sending a platform message to notify the completion of
+  /// Android's predictive back gesture.
+  ///
+  /// Calling this method will cause
+  /// [WidgetsBindingObserver.handleCommitBackGesture] to be invoked
+  /// by the framework.
+  Future<void> commitAndroidBackGesture() async {
+    await self.binding.defaultBinaryMessenger.handlePlatformMessage(
+      'flutter/backgesture',
+      const StandardMethodCodec().encodeMethodCall(
+        const MethodCall('commitBackGesture'),
+      ),
+      (ByteData? _) {},
+    );
+  }
+
+  /// Simulates sending a platform message to notify the cancellation of
+  /// Android's predictive back gesture.
+  ///
+  /// Calling this method will cause
+  /// [WidgetsBindingObserver.handleCancelBackGesture] to be invoked
+  /// by the framework.
+  Future<void> cancelAndroidBackGesture() async {
+    await self.binding.defaultBinaryMessenger.handlePlatformMessage(
+      'flutter/backgesture',
+      const StandardMethodCodec().encodeMethodCall(
+        const MethodCall('cancelBackGesture'),
+      ),
+      (ByteData? _) {},
+    );
+  }
+
+  /// Returns the local rectangle of the widget specified by the [finder].
+  ///
+  /// If [ancestor] is specified, the rectangle is relative to the ancestor.
+  /// Otherwise, the rectangle is relative to the parent of the widget.
+  Rect getLocalRect(
+    t.FinderBase<Element> finder, {
+    t.FinderBase<Element>? ancestor,
+  }) {
+    final globalTopLefet = getTopLeft(finder);
+    final box = renderObject(finder) as RenderBox;
+    if (ancestor case final ancestor?) {
+      final ancestorBox = renderObject(ancestor) as RenderBox;
+      return ancestorBox.globalToLocal(globalTopLefet) & box.size;
+    } else if (box.parent case final RenderBox parentBox?) {
+      return parentBox.globalToLocal(globalTopLefet) & box.size;
+    } else {
+      return Offset.zero & box.size;
+    }
+  }
+}
+
+extension TestGestureX on t.TestGesture {
+  /// Send a move event moving the pointer upward by the given [deltaY].
+  Future<void> moveUpwardBy(double deltaY) async {
+    assert(deltaY >= 0);
+    await moveBy(Offset(0, -deltaY));
+  }
+
+  /// Send a move event moving the pointer downward by the given [deltaY].
+  Future<void> moveDownwardBy(double deltaY) async {
+    assert(deltaY >= 0);
+    await moveBy(Offset(0, deltaY));
+  }
+}

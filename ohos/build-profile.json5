@@ -1,0 +1,41 @@
+{
+  "app": {
+    "signingConfigs": [
+      {
+        "name": "default",
+        "type": "OpenHarmony",
+        "material": {
+          "storeFile": "./hvigor/.signing/openharmony/OpenHarmony.p12",
+          "storePassword": "00000016afbd367282936c04283cdbe7cf3ea21a9b5a7befb3509a39f40d1152ac684e9ca6e2",
+          "keyAlias": "openharmony application release",
+          "keyPassword": "00000016340ea9af1243bff11563ebacab5368f3820b9b3e63d258720043a3352f6f2c5d7d86",
+          "signAlg": "SHA256withECDSA",
+          "profile": "./hvigor/.signing/openharmony/OpenHarmonyProfileRelease.p7b",
+          "certpath": "./hvigor/.signing/openharmony/OpenHarmonyApplicationRelease.cer"
+        }
+      }
+    ],
+    "products": [
+      {
+        "name": "default",
+        "signingConfig": "default",
+        "compatibleSdkVersion": "6.0.2(22)",
+        "runtimeOS": "HarmonyOS"
+      }
+    ]
+  },
+  "modules": [
+    {
+      "name": "entry",
+      "srcPath": "./entry",
+      "targets": [
+        {
+          "name": "default",
+          "applyToProducts": [
+            "default"
+          ]
+        }
+      ]
+    }
+  ]
+}
