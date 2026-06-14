@@ -31,7 +31,7 @@ class System {
 
   bool get isOhos => Platform.operatingSystem == 'ohos';
 
-  bool get isMobile => isAndroid || isOhos;
+  bool get isMobile => isAndroid;
 
   bool get isLinux => Platform.isLinux;
 
@@ -74,7 +74,7 @@ class System {
   }
 
   Future<AuthorizeCode> authorizeCore() async {
-    if (system.isMobile) {
+    if (system.isAndroid) {
       return AuthorizeCode.error;
     }
     final isAdmin = await checkIsAdmin();
@@ -135,7 +135,7 @@ class System {
   }
 
   Future<void> exit() async {
-    if (system.isMobile) {
+    if (system.isAndroid) {
       await SystemNavigator.pop();
     }
     await window?.close();

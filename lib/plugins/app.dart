@@ -108,4 +108,4 @@ class App {
   }
 }
 
-final app = system.isMobile ? App() : null;
+final app = system.isAndroid ? App() : null;

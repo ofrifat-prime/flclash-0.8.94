@@ -24,12 +24,6 @@
             </td>
         </tr>
         <tr>
-            <td>HarmonyOS NEXT</td>
-            <td>
-                <a href="https://github.com/chen08209/FlClash/releases/download/vVERSION/FlClash-VERSION-ohos-arm64.hap"><img src="https://img.shields.io/badge/HAP-ARM64-cc0000.svg?logo=harmonyos"></a>
-            </td>
-        </tr>
-        <tr>
             <td>Windows</td>
             <td>
                 <a href="https://github.com/chen08209/FlClash/releases/download/vVERSION/FlClash-VERSION-windows-amd64-setup.exe"><img src="https://img.shields.io/badge/Setup-x64-2d7d9a.svg?logo=windows"></a><br>

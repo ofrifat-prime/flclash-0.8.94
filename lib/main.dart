@@ -13,6 +13,11 @@ import 'common/common.dart';
 Future<void> main() async {
   try {
     WidgetsFlutterBinding.ensureInitialized();
+    if (system.isOhos) {
+      throw UnsupportedError(
+        'HarmonyOS host packaging is available, but the FlClash runtime is not implemented on OHOS yet.',
+      );
+    }
     if (system.isDesktop) {
       await RustLib.init();
     }

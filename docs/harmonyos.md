@@ -1,6 +1,6 @@
-# HarmonyOS NEXT build notes
+# HarmonyOS NEXT packaging notes
 
-This repository now contains an `ohos/` host project and minimal local plugin stubs so the codebase can be migrated toward OpenHarmony.
+This repository now contains an `ohos/` host project and the minimum local plugin skeletons required to produce a signed HarmonyOS `.hap` artifact for migration work.
 
 ## Current status
 
@@ -12,9 +12,16 @@ This repository now contains an `ohos/` host project and minimal local plugin st
   - `plugins/wifi_ssid`
   - `plugins/window_ext`
   - `plugins/setup`
-- Dart platform checks now treat OpenHarmony as a mobile target where the existing Android/mobile code path is expected
-- The local plugin `ohos/` implementations added in this branch are registration/build skeletons, not full feature-complete HarmonyOS ports
-- Release HAP compilation and signing now work with the OpenHarmony SDK's built-in demo signing materials when `OHOS_SDK_HOME` points to the OpenHarmony SDK root
+- Release HAP compilation and signing work with the OpenHarmony SDK's built-in demo signing materials when `OHOS_SDK_HOME` points to the OpenHarmony SDK root
+- The Flutter runtime is not implemented on OHOS yet. This branch does not ship a working HarmonyOS app runtime, only host/package scaffolding.
+
+## What is missing
+
+The current branch does not provide a runnable HarmonyOS port yet:
+
+- The Dart app runtime still lacks OHOS equivalents for the Android-only `app`, `service`, and `tile` channels
+- No verified OHOS `FlClashCore` runtime artifact is bundled or launched by the host project
+- Startup on OHOS is intentionally blocked with an explicit unsupported-runtime error instead of entering a broken half-ported path
 
 ## Hard prerequisites
 
@@ -79,7 +86,7 @@ flutter config --ohos-sdk <OpenHarmony SDK path>
 
 ## Build command
 
-After a compatible Harmony toolchain is installed and dependencies are aligned, build from the project root with the Harmony-enabled Flutter SDK:
+After a compatible Harmony toolchain is installed, build the packaging scaffold from the project root with the Harmony-enabled Flutter SDK:
 
 ```bash
 dart setup.dart ohos

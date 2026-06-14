@@ -24,7 +24,7 @@ on Mobile:
 
 ## Features
 
-✈️ Multi-platform: Android, HarmonyOS NEXT, Windows, macOS and Linux
+✈️ Multi-platform: Android, Windows, macOS and Linux
 
 💻 Adaptive multiple screen sizes, Multiple color themes available
 
@@ -121,17 +121,17 @@ Support the following actions
            dart setup.dart macos
            ```
 
-    - HarmonyOS NEXT
+    - HarmonyOS NEXT packaging scaffold
 
         1. Install DevEco Studio / OpenHarmony SDK and a Harmony-enabled Flutter SDK
 
-        2. Review the migration notes:
+        2. Review the migration notes and current limitations:
 
            ```bash
            cat docs/harmonyos.md
            ```
 
-        3. Build the HAP package with the repository packaging entry:
+        3. Build the signed HAP artifact with the repository packaging entry:
 
            ```bash
            dart setup.dart ohos

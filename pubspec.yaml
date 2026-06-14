@@ -83,7 +83,18 @@ dependencies:
     path: plugins/rust_api
   setup:
     path: plugins/setup
-dev_dependencies: {}
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  json_serializable: ^6.8.0
+  build_runner: ^2.14.1
+  args: ^2.4.2
+  freezed: ^3.2.5
+  riverpod_generator: ^4.0.3
+  drift_dev: ^2.31.0
+  intl_utils: ^2.8.14
+  mocktail: ^1.0.4
 
 dependency_overrides:
   smooth_sheets:
