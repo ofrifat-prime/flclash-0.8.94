@@ -14,6 +14,25 @@ class AboutView extends StatelessWidget {
 
   static const _slclashDesc =
       'SlClash 是基于 FlClash 和 Mihomo 内核私有裁剪和重设计的 Android 代理客户端。';
+  static const _unknown = 'unknown';
+
+  String get _coreVersion {
+    final version = globalState.mihomoVersion;
+    if (version.isEmpty) return _unknown;
+    return version.startsWith('v') ? version : 'v$version';
+  }
+
+  String get _coreReleaseDate {
+    final releaseDate = globalState.mihomoReleaseDate.takeFirstValid([
+      globalState.coreBuildTime,
+    ]);
+    if (releaseDate.isEmpty) return _unknown;
+    final dateTime = DateTime.tryParse(releaseDate);
+    if (dateTime == null) return releaseDate;
+    return dateTime.toLocal().show;
+  }
+
+  String get _coreInfo => 'Mihomo Core $_coreVersion · 发布日期 $_coreReleaseDate';
 
   Future<void> _checkUpdate(BuildContext context) async {
     final data = await globalState.safeRun<Map<String, dynamic>?>(
@@ -116,6 +135,15 @@ class AboutView extends StatelessWidget {
                                   Text(
                                     globalState.packageInfo.version,
                                     style: context.textTheme.labelMedium
+                                        ?.copyWith(
+                                          color: surge.textSecondary,
+                                          letterSpacing: 0,
+                                        ),
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    _coreInfo,
+                                    style: context.textTheme.labelSmall
                                         ?.copyWith(
                                           color: surge.textSecondary,
                                           letterSpacing: 0,

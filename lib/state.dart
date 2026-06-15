@@ -26,6 +26,10 @@ class GlobalState {
   final navigatorKey = GlobalKey<NavigatorState>();
   bool isPre = true;
   late final String coreSHA256;
+  late final String mihomoVersion;
+  late final String mihomoCommit;
+  late final String mihomoReleaseDate;
+  late final String coreBuildTime;
   late final PackageInfo packageInfo;
   Function? updateCurrentDelayDebounce;
   late Measure measure;
@@ -49,6 +53,10 @@ class GlobalState {
 
   Future<ProviderContainer> init(int version) async {
     coreSHA256 = const String.fromEnvironment('CORE_SHA256');
+    mihomoVersion = const String.fromEnvironment('MIHOMO_VERSION');
+    mihomoCommit = const String.fromEnvironment('MIHOMO_COMMIT');
+    mihomoReleaseDate = const String.fromEnvironment('MIHOMO_RELEASE_DATE');
+    coreBuildTime = const String.fromEnvironment('CORE_BUILD_TIME');
     isPre = const String.fromEnvironment('APP_ENV') != 'stable';
     await _initDynamicColor();
     return _initData(version);

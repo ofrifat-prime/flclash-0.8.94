@@ -13,6 +13,7 @@ import android.provider.Settings
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.ContextCompat.getSystemService
+import androidx.core.content.FileProvider
 import androidx.core.content.pm.ShortcutInfoCompat
 import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.core.graphics.drawable.IconCompat
@@ -163,6 +164,10 @@ class AppPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware 
                 result.success(openAppSettings())
             }
 
+            "installApk" -> {
+                result.success(installApk(call.argument<String>("path")))
+            }
+
             else -> {
                 result.notImplemented()
             }
@@ -208,6 +213,40 @@ class AppPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware 
                 data = "package:${GlobalState.application.packageName}".toUri()
             }
             activityRef?.get()?.startActivity(intent)
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    private fun installApk(path: String?): Boolean {
+        if (path.isNullOrEmpty()) return false
+        val activity = activityRef?.get() ?: return false
+        val apkFile = File(path)
+        if (!apkFile.exists()) return false
+        return try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val canInstall = GlobalState.application.packageManager.canRequestPackageInstalls()
+                if (!canInstall) {
+                    val settingsIntent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+                        data = "package:${GlobalState.application.packageName}".toUri()
+                    }
+                    activity.startActivity(settingsIntent)
+                    return false
+                }
+            }
+
+            val uri = FileProvider.getUriForFile(
+                GlobalState.application,
+                "${GlobalState.application.packageName}.fileprovider",
+                apkFile
+            )
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, "application/vnd.android.package-archive")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            activity.startActivity(intent)
             true
         } catch (_: Exception) {
             false
