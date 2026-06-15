@@ -59,6 +59,12 @@ class ProxyCard extends StatelessWidget {
           selectedProxyNameProvider(groupName),
         );
         final isSelected = selectedProxyName == proxy.name;
+        final dynamicColor = ref.watch(
+          themeSettingProvider.select((state) => state.dynamicColor),
+        );
+        final selectedBorderColor = !dynamicColor
+            ? const Color(0xFFD8DAE0)
+            : surge.primary;
         return Stack(
           clipBehavior: Clip.none,
           children: [
@@ -72,7 +78,7 @@ class ProxyCard extends StatelessWidget {
               borderRadius: surge.radii.list,
               backgroundColor: isSelected ? surge.selectedFill : surge.card,
               border: Border.all(
-                color: isSelected ? surge.primary : surge.separator,
+                color: isSelected ? selectedBorderColor : surge.separator,
                 width: 0.5,
               ),
               child: Padding(

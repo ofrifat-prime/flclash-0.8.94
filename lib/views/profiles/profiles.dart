@@ -1187,125 +1187,135 @@ class ProfileItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final surge = SurgeTheme.of(context);
     final isSelected = profile.id == groupValue;
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        SurgeCard(
-          backgroundColor: isSelected ? surge.selectedFill : surge.card,
-          border: Border.all(
-            color: isSelected ? surge.primary : surge.separator,
-            width: 0.5,
-          ),
-          shadow: false,
-          borderRadius: surge.radii.list,
-          padding: EdgeInsets.zero,
-          onTap: () {
-            onChanged(profile.id);
-          },
-          child: Padding(
-            key: Key(profile.id.toString()),
-            padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Expanded(
-                  child: _ProfileTextBlock(
-                    profile: profile,
-                    info: switch (profile.type) {
-                      ProfileType.file => _buildFileProfileInfo(context),
-                      ProfileType.url => _buildUrlProfileInfo(context),
-                    },
-                  ),
-                ),
-                const SizedBox(width: 10),
-                _ProfilePill(
-                  label: profile.type.name,
-                  color: surge.textSecondary,
-                ),
-                const SizedBox(width: 4),
-                SizedBox(
-                  height: 40,
-                  width: 40,
-                  child: Consumer(
-                    builder: (_, ref, _) {
-                      final isUpdating = ref.watch(
-                        isUpdatingProvider(profile.updatingKey),
-                      );
-                      return FadeThroughBox(
-                        child: isUpdating
-                            ? const Padding(
-                                key: ValueKey('loading'),
-                                padding: EdgeInsets.all(9),
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : _ProfileActionButton(
-                                onEdit: () {
-                                  _handleShowEditExtendPage(context);
-                                },
-                                onPreview: () {
-                                  _handlePreview(context);
-                                },
-                                onSync: profile.type == ProfileType.url
-                                    ? updateProfile
-                                    : null,
-                                onOverride: () {
-                                  _handlePushGenProfilePage(
-                                    context,
-                                    profile.id,
-                                  );
-                                },
-                                onCopyLink: profile.type == ProfileType.url
-                                    ? () {
-                                        _handleCopyLink(context);
-                                      }
-                                    : null,
-                                onExport: () {
-                                  _handleExportFile(context);
-                                },
-                                onDelete: () {
-                                  _handleDeleteProfile(context);
-                                },
-                              ),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        Positioned(
-          right: 10,
-          top: -6,
-          child: AnimatedScale(
-            scale: isSelected ? 1 : 0.65,
-            duration: const Duration(milliseconds: 160),
-            curve: Curves.easeOutCubic,
-            child: AnimatedOpacity(
-              opacity: isSelected ? 1 : 0,
-              duration: const Duration(milliseconds: 160),
-              child: Container(
-                width: 18,
-                height: 18,
-                decoration: BoxDecoration(
-                  color: surge.primary,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: surge.card, width: 2),
-                  boxShadow: [
-                    BoxShadow(
-                      color: surge.shadow,
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
+    return Consumer(
+      builder: (_, ref, _) {
+        final dynamicColor = ref.watch(
+          themeSettingProvider.select((state) => state.dynamicColor),
+        );
+        final selectedBorderColor = !dynamicColor
+            ? const Color(0xFFD8DAE0)
+            : surge.primary;
+        return Stack(
+          clipBehavior: Clip.none,
+          children: [
+            SurgeCard(
+              backgroundColor: isSelected ? surge.selectedFill : surge.card,
+              border: Border.all(
+                color: isSelected ? selectedBorderColor : surge.separator,
+                width: 0.5,
+              ),
+              shadow: false,
+              borderRadius: surge.radii.list,
+              padding: EdgeInsets.zero,
+              onTap: () {
+                onChanged(profile.id);
+              },
+              child: Padding(
+                key: Key(profile.id.toString()),
+                padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: _ProfileTextBlock(
+                        profile: profile,
+                        info: switch (profile.type) {
+                          ProfileType.file => _buildFileProfileInfo(context),
+                          ProfileType.url => _buildUrlProfileInfo(context),
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    _ProfilePill(
+                      label: profile.type.name,
+                      color: surge.textSecondary,
+                    ),
+                    const SizedBox(width: 4),
+                    SizedBox(
+                      height: 40,
+                      width: 40,
+                      child: Consumer(
+                        builder: (_, ref, _) {
+                          final isUpdating = ref.watch(
+                            isUpdatingProvider(profile.updatingKey),
+                          );
+                          return FadeThroughBox(
+                            child: isUpdating
+                                ? const Padding(
+                                    key: ValueKey('loading'),
+                                    padding: EdgeInsets.all(9),
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : _ProfileActionButton(
+                                    onEdit: () {
+                                      _handleShowEditExtendPage(context);
+                                    },
+                                    onPreview: () {
+                                      _handlePreview(context);
+                                    },
+                                    onSync: profile.type == ProfileType.url
+                                        ? updateProfile
+                                        : null,
+                                    onOverride: () {
+                                      _handlePushGenProfilePage(
+                                        context,
+                                        profile.id,
+                                      );
+                                    },
+                                    onCopyLink: profile.type == ProfileType.url
+                                        ? () {
+                                            _handleCopyLink(context);
+                                          }
+                                        : null,
+                                    onExport: () {
+                                      _handleExportFile(context);
+                                    },
+                                    onDelete: () {
+                                      _handleDeleteProfile(context);
+                                    },
+                                  ),
+                          );
+                        },
+                      ),
                     ),
                   ],
                 ),
               ),
             ),
-          ),
-        ),
-      ],
+            Positioned(
+              right: 10,
+              top: -6,
+              child: AnimatedScale(
+                scale: isSelected ? 1 : 0.65,
+                duration: const Duration(milliseconds: 160),
+                curve: Curves.easeOutCubic,
+                child: AnimatedOpacity(
+                  opacity: isSelected ? 1 : 0,
+                  duration: const Duration(milliseconds: 160),
+                  child: Container(
+                    width: 18,
+                    height: 18,
+                    decoration: BoxDecoration(
+                      color: surge.primary,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: surge.card, width: 2),
+                      boxShadow: [
+                        BoxShadow(
+                          color: surge.shadow,
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

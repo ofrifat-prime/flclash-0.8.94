@@ -1,7 +1,9 @@
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/app.dart';
+import 'package:fl_clash/providers/config.dart';
 import 'package:fl_clash/providers/state.dart';
+import 'package:fl_clash/views/dashboard/widgets/dashboard_palette.dart';
 import 'package:fl_clash/widgets/surge/surge.dart';
 import 'package:fl_clash/widgets/widgets.dart';
 import 'package:flutter/material.dart';
@@ -52,6 +54,9 @@ class SurgeNetworkOverviewCard extends ConsumerWidget {
     final totalTraffic = ref.watch(totalTrafficProvider);
     final networkDetection = ref.watch(networkDetectionProvider);
     final isStart = ref.watch(isStartProvider);
+    final dynamicColor = ref.watch(
+      themeSettingProvider.select((state) => state.dynamicColor),
+    );
     final lastTraffic = traffics.isEmpty ? const Traffic() : traffics.last;
     final hasLiveTraffic = traffics.any(
       (traffic) => traffic.up > 0 || traffic.down > 0,
@@ -71,8 +76,12 @@ class SurgeNetworkOverviewCard extends ConsumerWidget {
       (traffic) => traffic.down,
       const [0.077, 0.077, 0.077, 0.077, 0.077, 0.077, 0.077, 0.077],
     );
-    final uploadColor = isStart ? surge.primary : surge.inactive;
-    final downloadColor = isStart ? surge.green : surge.inactiveVariant;
+    final uploadColor = isStart
+        ? dynamicColor
+              ? dashboardDynamicActiveFill
+              : surge.primary
+        : dashboardInactiveFill;
+    final downloadColor = isStart ? surge.green : dashboardInactiveVariantFill;
     final lineFillStartAlpha = isStart ? 0.16 : 1.0;
     final lineFillEndAlpha = isStart ? 0.03 : 0.08;
 

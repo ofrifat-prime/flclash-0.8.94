@@ -4,6 +4,7 @@ import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/providers.dart';
+import 'package:fl_clash/views/dashboard/widgets/dashboard_palette.dart';
 import 'package:fl_clash/widgets/surge/surge.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -109,6 +110,9 @@ class _SurgeDashboardHeroState extends ConsumerState<SurgeDashboardHero>
       patchClashConfigProvider.select((state) => state.mode),
     );
     final coreStatus = ref.watch(coreStatusProvider);
+    final dynamicColor = ref.watch(
+      themeSettingProvider.select((state) => state.dynamicColor),
+    );
     final currentProfile = ref.watch(currentProfileProvider);
     final profileLabel =
         currentProfile?.realLabel.takeFirstValid(['SlClash']) ?? 'SlClash';
@@ -207,6 +211,7 @@ class _SurgeDashboardHeroState extends ConsumerState<SurgeDashboardHero>
                 modeLabel: '${_modeLabel(mode)} Mode',
                 title: '出站流量',
                 active: isStart,
+                dynamicColor: dynamicColor,
                 connecting:
                     _showConnecting || coreStatus == CoreStatus.connecting,
                 failed: _showFailure,
@@ -241,6 +246,7 @@ class _HeroModeCard extends StatelessWidget {
     required this.title,
     required this.modeLabel,
     required this.active,
+    required this.dynamicColor,
     required this.connecting,
     required this.failed,
     required this.statusLabel,
@@ -250,6 +256,7 @@ class _HeroModeCard extends StatelessWidget {
   final String title;
   final String modeLabel;
   final bool active;
+  final bool dynamicColor;
   final bool connecting;
   final bool failed;
   final String statusLabel;
@@ -267,6 +274,7 @@ class _HeroModeCard extends StatelessWidget {
                 title: title,
                 modeLabel: modeLabel,
                 active: active,
+                dynamicColor: dynamicColor,
                 connecting: connecting,
                 failed: failed,
                 statusLabel: statusLabel,
@@ -283,6 +291,7 @@ class _HeroModeCard extends StatelessWidget {
                         title: title,
                         modeLabel: modeLabel,
                         active: active,
+                        dynamicColor: dynamicColor,
                         connecting: connecting,
                         failed: failed,
                         statusLabel: statusLabel,
@@ -304,6 +313,7 @@ class _HeroModeCardSurface extends StatelessWidget {
     required this.title,
     required this.modeLabel,
     required this.active,
+    required this.dynamicColor,
     required this.connecting,
     required this.failed,
     required this.statusLabel,
@@ -313,6 +323,7 @@ class _HeroModeCardSurface extends StatelessWidget {
   final String title;
   final String modeLabel;
   final bool active;
+  final bool dynamicColor;
   final bool connecting;
   final bool failed;
   final String statusLabel;
@@ -321,21 +332,30 @@ class _HeroModeCardSurface extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final surge = SurgeTheme.of(context);
-    final foreground = Colors.white;
-    final secondary = onBlue
-        ? Colors.white.withValues(alpha: 0.82)
-        : Colors.white.withValues(alpha: 0.78);
+    final activeFill = dynamicColor
+        ? dashboardDynamicActiveFill
+        : surge.primary;
+    const activeTextColor = Colors.white;
+    const inactiveTextColor = Colors.white;
+    final foreground = onBlue ? activeTextColor : inactiveTextColor;
+    final secondary = foreground.withValues(
+      alpha: onBlue && dynamicColor ? 0.92 : 0.82,
+    );
     return Container(
       width: double.infinity,
       height: 80,
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
       decoration: BoxDecoration(
-        color: onBlue ? null : surge.inactive,
-        gradient: onBlue
+        color: onBlue && dynamicColor
+            ? activeFill
+            : onBlue
+            ? null
+            : dashboardInactiveFill,
+        gradient: onBlue && !dynamicColor
             ? LinearGradient(
                 colors: [
-                  surge.primary,
-                  Color.lerp(surge.primary, Colors.black, 0.18)!,
+                  activeFill,
+                  Color.lerp(activeFill, Colors.black, 0.16)!,
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
@@ -367,9 +387,9 @@ class _HeroModeCardSurface extends StatelessWidget {
                   maxLines: 1,
                   softWrap: false,
                   style: context.textTheme.titleLarge?.copyWith(
-                    color: Colors.white,
+                    color: foreground,
                     fontSize: 16,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w600,
                     height: 1.05,
                     letterSpacing: 0,
                   ),
@@ -396,6 +416,7 @@ class _HeroModeCardSurface extends StatelessWidget {
             connecting: connecting,
             failed: failed,
             label: statusLabel,
+            dynamicColor: dynamicColor,
             onBlue: onBlue,
           ),
         ],
@@ -579,6 +600,7 @@ class _StatusPill extends StatelessWidget {
     required this.connecting,
     required this.failed,
     required this.label,
+    required this.dynamicColor,
     required this.onBlue,
   });
 
@@ -586,17 +608,17 @@ class _StatusPill extends StatelessWidget {
   final bool connecting;
   final bool failed;
   final String label;
+  final bool dynamicColor;
   final bool onBlue;
 
   @override
   Widget build(BuildContext context) {
-    final background = onBlue
-        ? Colors.white.withValues(alpha: 0.18)
-        : Colors.white.withValues(alpha: 0.16);
+    final pillAlpha = onBlue && dynamicColor ? 0.24 : 0.18;
+    final background = Colors.white.withValues(alpha: pillAlpha);
     final borderColor = onBlue
-        ? Colors.white.withValues(alpha: 0.16)
+        ? Colors.white.withValues(alpha: dynamicColor ? 0.28 : 0.16)
         : Colors.white.withValues(alpha: 0.18);
-    final textColor = Colors.white;
+    const textColor = Colors.white;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
