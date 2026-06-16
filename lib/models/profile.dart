@@ -49,6 +49,7 @@ abstract class Profile with _$Profile {
     @Default('') String url,
     DateTime? lastUpdateDate,
     required Duration autoUpdateDuration,
+    @Default(null) String? userAgent,
     SubscriptionInfo? subscriptionInfo,
     @Default(true) bool autoUpdate,
     @Default({}) Map<String, String> selectedMap,
@@ -198,7 +199,7 @@ extension ProfileExtension on Profile {
   }
 
   Future<Profile> update() async {
-    final response = await request.getFileResponseForUrl(url);
+    final response = await request.getFileResponseForUrl(url, userAgent: userAgent);
     final disposition = response.headers.value('content-disposition');
     final userinfo = response.headers.value('subscription-userinfo');
     return copyWith(

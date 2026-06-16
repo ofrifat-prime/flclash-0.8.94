@@ -926,7 +926,7 @@ class ProfilesAction extends _$ProfilesAction {
     }
   }
 
-  Future<void> addProfileFormURL(String url) async {
+  Future<void> addProfileFormURL(String url, {String? userAgent}) async {
     if (globalState.navigatorKey.currentState?.canPop() ?? false) {
       globalState.navigatorKey.currentState?.popUntil((route) => route.isFirst);
     }
@@ -934,7 +934,7 @@ class ProfilesAction extends _$ProfilesAction {
     final profile = await globalState.loadingRun(
       tag: LoadingTag.profiles,
       () async {
-        return Profile.normal(url: url).update();
+        return Profile.normal(url: url).copyWith(userAgent: userAgent).update();
       },
       title: currentAppLocalizations.addProfile,
     );
@@ -950,10 +950,9 @@ class ProfilesAction extends _$ProfilesAction {
     }
   }
 
-  Future<void> addProfileFormQrCode() async {
+  Future<String?> getQrCodeUrl() async {
     final url = await globalState.safeRun(picker.pickerConfigQRCode);
-    if (url == null) return;
-    addProfileFormURL(url);
+    return url;
   }
 
   void reorder(List<Profile> profiles) {

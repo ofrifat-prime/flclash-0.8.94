@@ -11,6 +11,8 @@ class Profiles extends Table {
 
   TextColumn get currentGroupName => text().nullable()();
 
+  TextColumn get userAgent => text().nullable()();
+
   TextColumn get url => text()();
 
   DateTimeColumn get lastUpdateDate => dateTime().nullable()();
@@ -110,6 +112,7 @@ extension RawProfilExt on RawProfile {
       id: id,
       label: label,
       currentGroupName: currentGroupName,
+      userAgent: userAgent,
       url: url,
       lastUpdateDate: lastUpdateDate,
       autoUpdateDuration: Duration(milliseconds: autoUpdateDurationMillis),
@@ -130,6 +133,7 @@ extension ProfilesCompanionExt on Profile {
       id: Value(id),
       label: label,
       currentGroupName: Value(currentGroupName),
+      userAgent: Value(userAgent),
       url: url,
       lastUpdateDate: Value(lastUpdateDate),
       autoUpdateDurationMillis: autoUpdateDuration.inMilliseconds,

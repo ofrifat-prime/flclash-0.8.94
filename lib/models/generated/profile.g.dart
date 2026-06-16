@@ -33,6 +33,7 @@ _Profile _$ProfileFromJson(Map<String, dynamic> json) => _Profile(
   autoUpdateDuration: Duration(
     microseconds: (json['autoUpdateDuration'] as num).toInt(),
   ),
+  userAgent: json['userAgent'] as String? ?? null,
   subscriptionInfo: json['subscriptionInfo'] == null
       ? null
       : SubscriptionInfo.fromJson(
@@ -61,6 +62,7 @@ Map<String, dynamic> _$ProfileToJson(_Profile instance) => <String, dynamic>{
   'url': instance.url,
   'lastUpdateDate': instance.lastUpdateDate?.toIso8601String(),
   'autoUpdateDuration': instance.autoUpdateDuration.inMicroseconds,
+  'userAgent': instance.userAgent,
   'subscriptionInfo': instance.subscriptionInfo,
   'autoUpdate': instance.autoUpdate,
   'selectedMap': instance.selectedMap,

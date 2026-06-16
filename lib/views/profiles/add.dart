@@ -1,4 +1,5 @@
 import 'package:fl_clash/common/common.dart';
+import 'package:fl_clash/views/config/general.dart';
 import 'package:fl_clash/pages/scan.dart';
 import 'package:fl_clash/providers/action.dart';
 import 'package:fl_clash/state.dart';
@@ -16,48 +17,31 @@ class AddProfileView extends StatelessWidget {
         .addProfileFormFile();
   }
 
-  Future<void> _handleAddProfileFormURL(String url) async {
-    globalState.container
-        .read(profilesActionProvider.notifier)
-        .addProfileFormURL(url);
-  }
 
   Future<void> _toScan() async {
     if (system.isDesktop) {
-      globalState.container
-          .read(profilesActionProvider.notifier)
-          .addProfileFormQrCode();
+      final url = await globalState.safeRun(picker.pickerConfigQRCode);
+      if (url != null) {
+        _toAdd(url);
+      }
       return;
     }
     final url = await BaseNavigator.push(context, const ScanPage());
     if (url != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _handleAddProfileFormURL(url);
+        _toAdd(url);
       });
     }
   }
 
-  Future<void> _toAdd() async {
-    final appLocalizations = context.appLocalizations;
-    final url = await globalState.showCommonDialog<String>(
-      child: InputDialog(
-        autovalidateMode: AutovalidateMode.onUnfocus,
-        title: appLocalizations.importFromURL,
-        labelText: appLocalizations.url,
-        value: '',
-        validator: (value) {
-          if (value == null || value.isEmpty) {
-            return appLocalizations.emptyTip('').trim();
-          }
-          if (!value.isUrl) {
-            return appLocalizations.urlTip('').trim();
-          }
-          return null;
-        },
-      ),
+  Future<void> _toAdd([String? initialUrl]) async {
+    final res = await globalState.showCommonDialog<(String, String?)>(
+      child: URLFormDialog(initialUrl: initialUrl ?? ''),
     );
-    if (url != null) {
-      _handleAddProfileFormURL(url);
+    if (res != null) {
+      globalState.container
+          .read(profilesActionProvider.notifier)
+          .addProfileFormURL(res.$1, userAgent: res.$2);
     }
   }
 
@@ -90,19 +74,21 @@ class AddProfileView extends StatelessWidget {
 }
 
 class URLFormDialog extends StatefulWidget {
-  const URLFormDialog({super.key});
+  final String initialUrl;
+  const URLFormDialog({super.key, this.initialUrl = ''});
 
   @override
   State<URLFormDialog> createState() => _URLFormDialogState();
 }
 
 class _URLFormDialogState extends State<URLFormDialog> {
-  final _urlController = TextEditingController();
+  late final _urlController = TextEditingController(text: widget.initialUrl);
+  String? _userAgent;
 
   Future<void> _handleAddProfileFormURL() async {
     final url = _urlController.value.text;
     if (url.isEmpty) return;
-    Navigator.of(context).pop<String>(url);
+    Navigator.of(context).pop<(String, String?)>((url, _userAgent));
   }
 
   @override
@@ -140,6 +126,33 @@ class _URLFormDialogState extends State<URLFormDialog> {
                 border: const OutlineInputBorder(),
                 labelText: appLocalizations.url,
               ),
+            ),
+            ListItem(
+              title: const Text('User-Agent'),
+              subtitle: Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: Text(
+                  _userAgent ?? 'Global',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                ),
+              ),
+              onTap: () async {
+                final result = await globalState.showCommonDialog<UaResult>(
+                  child: UaDialog(
+                    title: 'UA',
+                    currentUa: _userAgent,
+                    defaultLabel: 'Global',
+                  ),
+                );
+                if (result == null) return;
+                setState(() {
+                  _userAgent = result.value;
+                });
+              },
             ),
           ],
         ),
