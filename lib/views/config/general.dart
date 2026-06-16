@@ -47,20 +47,236 @@ class UaItem extends ConsumerWidget {
     final globalUa = ref.watch(
       patchClashConfigProvider.select((state) => state.globalUa),
     );
-    return ListItem<String?>.options(
+    return ListItem(
       leading: const Icon(Icons.computer_outlined),
       title: const Text('UA'),
-      subtitle: Text(globalUa ?? appLocalizations.defaultText),
-      delegate: OptionsDelegate<String?>(
-        title: 'UA',
-        options: [null, 'clash-verge/v2.4.2', 'ClashforWindows/0.19.23'],
-        value: globalUa,
-        onChanged: (value) {
-          ref
-              .read(patchClashConfigProvider.notifier)
-              .update((state) => state.copyWith(globalUa: value));
-        },
-        textBuilder: (ua) => ua ?? appLocalizations.defaultText,
+      subtitle: Text(
+        globalUa ?? appLocalizations.defaultText,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      onTap: () async {
+        // Use UaResult wrapper to distinguish "cancelled" from "selected Default"
+        final result = await globalState.showCommonDialog<UaResult>(
+          child: UaDialog(currentUa: globalUa),
+        );
+        if (result == null) return;
+        ref
+            .read(patchClashConfigProvider.notifier)
+            .update((state) => state.copyWith(globalUa: result.value));
+      },
+    );
+  }
+}
+
+/// Wrapper to distinguish "dialog cancelled" (null) from "user chose Default" (UaResult).
+class UaResult {
+  final String? value;
+  const UaResult(this.value);
+}
+
+class UaDialog extends StatefulWidget {
+  final String? currentUa;
+  final String defaultLabel;
+  final String? title;
+
+  const UaDialog({
+    super.key,
+    this.title,
+    required this.currentUa,
+    this.defaultLabel = 'Default',
+  });
+
+  @override
+  State<UaDialog> createState() => UaDialogState();
+}
+
+class UaDialogState extends State<UaDialog> {
+  late final List<(String?, String)> _presetUas = [
+    (null, widget.defaultLabel),
+    ('', 'Default'),
+    ('clash-verge/v2.4.2', 'clash-verge'),
+    ('ClashforWindows/0.19.23', 'Clash for Windows'),
+    (
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+      'Chrome 131 (Windows)',
+    ),
+    (
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:133.0) Gecko/20100101 Firefox/133.0',
+      'Firefox 133 (Windows)',
+    ),
+    (
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_2) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15',
+      'Safari 17 (macOS)',
+    ),
+    (
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0',
+      'Edge 131 (Windows)',
+    ),
+    (
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 OPR/116.0.0.0',
+      'Opera 116 (Windows)',
+    ),
+    (
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1',
+      'Safari (iOS)',
+    ),
+    (
+      'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36',
+      'Chrome (Android)',
+    ),
+  ];
+
+  static const _customKey = '__custom__';
+
+  late String? _selectedValue;
+  late TextEditingController _customController;
+  bool _isCustom = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedValue = widget.currentUa;
+    _customController = TextEditingController(
+      text: widget.currentUa ?? '',
+    );
+    // If current value is not one of the presets, treat it as custom
+    final isPreset = _presetUas.any((pair) => pair.$1 == widget.currentUa);
+    _isCustom = widget.currentUa != null && !isPreset;
+  }
+
+  @override
+  void dispose() {
+    _customController.dispose();
+    super.dispose();
+  }
+
+  void _handlePresetSelected(String? value) {
+    setState(() {
+      _selectedValue = value;
+      _isCustom = false;
+    });
+  }
+
+  void _handleCustomSelected() {
+    setState(() {
+      _isCustom = true;
+      _selectedValue = _customController.text.isEmpty
+          ? null
+          : _customController.text;
+    });
+  }
+
+  void _handleCustomChanged(String value) {
+    setState(() {
+      _selectedValue = value.isEmpty ? null : value;
+    });
+  }
+
+  void _handleSubmit() {
+    final value = _isCustom
+        ? _customController.text.trim()
+        : _selectedValue;
+    Navigator.of(context).pop<UaResult>(UaResult(value));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final appLocalizations = context.appLocalizations;
+    return CommonDialog(
+      title: widget.title ?? 'UA',
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      actions: [
+        TextButton(
+          onPressed: () {
+            Navigator.of(context).pop();
+          },
+          child: Text(appLocalizations.cancel),
+        ),
+        TextButton(
+          onPressed: _handleSubmit,
+          child: Text(appLocalizations.submit),
+        ),
+      ],
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Preset radio options
+          RadioGroup<String?>(
+            groupValue: _isCustom ? _customKey : _selectedValue,
+            onChanged: (value) {
+              if (value == _customKey) {
+                _handleCustomSelected();
+              } else {
+                _handlePresetSelected(value);
+              }
+            },
+            child: Wrap(
+              children: [
+                for (final (uaValue, label) in _presetUas)
+                  Builder(
+                    builder: (context) {
+                      final isSelected =
+                          !_isCustom && _selectedValue == uaValue;
+                      if (isSelected) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          Scrollable.ensureVisible(context);
+                        });
+                      }
+                      return ListItem.radio(
+                        delegate: RadioDelegate<String?>(
+                          value: uaValue,
+                          onTab: () {
+                            _handlePresetSelected(uaValue);
+                          },
+                        ),
+                        title: Text(label),
+                      );
+                    },
+                  ),
+                // Custom option
+                Builder(
+                  builder: (context) {
+                    if (_isCustom) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        Scrollable.ensureVisible(context);
+                      });
+                    }
+                    return ListItem.radio(
+                      delegate: RadioDelegate<String?>(
+                        value: _customKey,
+                        onTab: () {
+                          _handleCustomSelected();
+                        },
+                      ),
+                      title: Text(appLocalizations.custom),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+          // Custom UA text input
+          if (_isCustom) ...[
+            const Divider(height: 16),
+            TextField(
+              controller: _customController,
+              autofocus: true,
+              maxLines: 3,
+              minLines: 1,
+              keyboardType: TextInputType.text,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                hintText: 'Mozilla/5.0 ...',
+                labelText: 'User-Agent',
+              ),
+              onChanged: _handleCustomChanged,
+              onSubmitted: (_) {
+                _handleSubmit();
+              },
+            ),
+          ],
+        ],
       ),
     );
   }

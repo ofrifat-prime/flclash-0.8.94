@@ -38,6 +38,17 @@ class $ProfilesTable extends Profiles
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _userAgentMeta = const VerificationMeta(
+    'userAgent',
+  );
+  @override
+  late final GeneratedColumn<String> userAgent = GeneratedColumn<String>(
+    'user_agent',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _urlMeta = const VerificationMeta('url');
   @override
   late final GeneratedColumn<String> url = GeneratedColumn<String>(
@@ -145,6 +156,7 @@ class $ProfilesTable extends Profiles
     id,
     label,
     currentGroupName,
+    userAgent,
     url,
     lastUpdateDate,
     overwriteType,
@@ -186,6 +198,12 @@ class $ProfilesTable extends Profiles
           data['current_group_name']!,
           _currentGroupNameMeta,
         ),
+      );
+    }
+    if (data.containsKey('user_agent')) {
+      context.handle(
+        _userAgentMeta,
+        userAgent.isAcceptableOrUnknown(data['user_agent']!, _userAgentMeta),
       );
     }
     if (data.containsKey('url')) {
@@ -256,6 +274,10 @@ class $ProfilesTable extends Profiles
       currentGroupName: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}current_group_name'],
+      ),
+      userAgent: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_agent'],
       ),
       url: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
@@ -329,6 +351,7 @@ class RawProfile extends DataClass implements Insertable<RawProfile> {
   final int id;
   final String label;
   final String? currentGroupName;
+  final String? userAgent;
   final String url;
   final DateTime? lastUpdateDate;
   final OverwriteType overwriteType;
@@ -343,6 +366,7 @@ class RawProfile extends DataClass implements Insertable<RawProfile> {
     required this.id,
     required this.label,
     this.currentGroupName,
+    this.userAgent,
     required this.url,
     this.lastUpdateDate,
     required this.overwriteType,
@@ -361,6 +385,9 @@ class RawProfile extends DataClass implements Insertable<RawProfile> {
     map['label'] = Variable<String>(label);
     if (!nullToAbsent || currentGroupName != null) {
       map['current_group_name'] = Variable<String>(currentGroupName);
+    }
+    if (!nullToAbsent || userAgent != null) {
+      map['user_agent'] = Variable<String>(userAgent);
     }
     map['url'] = Variable<String>(url);
     if (!nullToAbsent || lastUpdateDate != null) {
@@ -406,6 +433,9 @@ class RawProfile extends DataClass implements Insertable<RawProfile> {
       currentGroupName: currentGroupName == null && nullToAbsent
           ? const Value.absent()
           : Value(currentGroupName),
+      userAgent: userAgent == null && nullToAbsent
+          ? const Value.absent()
+          : Value(userAgent),
       url: Value(url),
       lastUpdateDate: lastUpdateDate == null && nullToAbsent
           ? const Value.absent()
@@ -436,6 +466,7 @@ class RawProfile extends DataClass implements Insertable<RawProfile> {
       id: serializer.fromJson<int>(json['id']),
       label: serializer.fromJson<String>(json['label']),
       currentGroupName: serializer.fromJson<String?>(json['currentGroupName']),
+      userAgent: serializer.fromJson<String?>(json['userAgent']),
       url: serializer.fromJson<String>(json['url']),
       lastUpdateDate: serializer.fromJson<DateTime?>(json['lastUpdateDate']),
       overwriteType: $ProfilesTable.$converteroverwriteType.fromJson(
@@ -463,6 +494,7 @@ class RawProfile extends DataClass implements Insertable<RawProfile> {
       'id': serializer.toJson<int>(id),
       'label': serializer.toJson<String>(label),
       'currentGroupName': serializer.toJson<String?>(currentGroupName),
+      'userAgent': serializer.toJson<String?>(userAgent),
       'url': serializer.toJson<String>(url),
       'lastUpdateDate': serializer.toJson<DateTime?>(lastUpdateDate),
       'overwriteType': serializer.toJson<String>(
@@ -486,6 +518,7 @@ class RawProfile extends DataClass implements Insertable<RawProfile> {
     int? id,
     String? label,
     Value<String?> currentGroupName = const Value.absent(),
+    Value<String?> userAgent = const Value.absent(),
     String? url,
     Value<DateTime?> lastUpdateDate = const Value.absent(),
     OverwriteType? overwriteType,
@@ -502,6 +535,7 @@ class RawProfile extends DataClass implements Insertable<RawProfile> {
     currentGroupName: currentGroupName.present
         ? currentGroupName.value
         : this.currentGroupName,
+    userAgent: userAgent.present ? userAgent.value : this.userAgent,
     url: url ?? this.url,
     lastUpdateDate: lastUpdateDate.present
         ? lastUpdateDate.value
@@ -525,6 +559,7 @@ class RawProfile extends DataClass implements Insertable<RawProfile> {
       currentGroupName: data.currentGroupName.present
           ? data.currentGroupName.value
           : this.currentGroupName,
+      userAgent: data.userAgent.present ? data.userAgent.value : this.userAgent,
       url: data.url.present ? data.url.value : this.url,
       lastUpdateDate: data.lastUpdateDate.present
           ? data.lastUpdateDate.value
@@ -556,6 +591,7 @@ class RawProfile extends DataClass implements Insertable<RawProfile> {
           ..write('id: $id, ')
           ..write('label: $label, ')
           ..write('currentGroupName: $currentGroupName, ')
+          ..write('userAgent: $userAgent, ')
           ..write('url: $url, ')
           ..write('lastUpdateDate: $lastUpdateDate, ')
           ..write('overwriteType: $overwriteType, ')
@@ -575,6 +611,7 @@ class RawProfile extends DataClass implements Insertable<RawProfile> {
     id,
     label,
     currentGroupName,
+    userAgent,
     url,
     lastUpdateDate,
     overwriteType,
@@ -593,6 +630,7 @@ class RawProfile extends DataClass implements Insertable<RawProfile> {
           other.id == this.id &&
           other.label == this.label &&
           other.currentGroupName == this.currentGroupName &&
+          other.userAgent == this.userAgent &&
           other.url == this.url &&
           other.lastUpdateDate == this.lastUpdateDate &&
           other.overwriteType == this.overwriteType &&
@@ -609,6 +647,7 @@ class ProfilesCompanion extends UpdateCompanion<RawProfile> {
   final Value<int> id;
   final Value<String> label;
   final Value<String?> currentGroupName;
+  final Value<String?> userAgent;
   final Value<String> url;
   final Value<DateTime?> lastUpdateDate;
   final Value<OverwriteType> overwriteType;
@@ -623,6 +662,7 @@ class ProfilesCompanion extends UpdateCompanion<RawProfile> {
     this.id = const Value.absent(),
     this.label = const Value.absent(),
     this.currentGroupName = const Value.absent(),
+    this.userAgent = const Value.absent(),
     this.url = const Value.absent(),
     this.lastUpdateDate = const Value.absent(),
     this.overwriteType = const Value.absent(),
@@ -638,6 +678,7 @@ class ProfilesCompanion extends UpdateCompanion<RawProfile> {
     this.id = const Value.absent(),
     required String label,
     this.currentGroupName = const Value.absent(),
+    this.userAgent = const Value.absent(),
     required String url,
     this.lastUpdateDate = const Value.absent(),
     required OverwriteType overwriteType,
@@ -659,6 +700,7 @@ class ProfilesCompanion extends UpdateCompanion<RawProfile> {
     Expression<int>? id,
     Expression<String>? label,
     Expression<String>? currentGroupName,
+    Expression<String>? userAgent,
     Expression<String>? url,
     Expression<DateTime>? lastUpdateDate,
     Expression<String>? overwriteType,
@@ -674,6 +716,7 @@ class ProfilesCompanion extends UpdateCompanion<RawProfile> {
       if (id != null) 'id': id,
       if (label != null) 'label': label,
       if (currentGroupName != null) 'current_group_name': currentGroupName,
+      if (userAgent != null) 'user_agent': userAgent,
       if (url != null) 'url': url,
       if (lastUpdateDate != null) 'last_update_date': lastUpdateDate,
       if (overwriteType != null) 'overwrite_type': overwriteType,
@@ -692,6 +735,7 @@ class ProfilesCompanion extends UpdateCompanion<RawProfile> {
     Value<int>? id,
     Value<String>? label,
     Value<String?>? currentGroupName,
+    Value<String?>? userAgent,
     Value<String>? url,
     Value<DateTime?>? lastUpdateDate,
     Value<OverwriteType>? overwriteType,
@@ -707,6 +751,7 @@ class ProfilesCompanion extends UpdateCompanion<RawProfile> {
       id: id ?? this.id,
       label: label ?? this.label,
       currentGroupName: currentGroupName ?? this.currentGroupName,
+      userAgent: userAgent ?? this.userAgent,
       url: url ?? this.url,
       lastUpdateDate: lastUpdateDate ?? this.lastUpdateDate,
       overwriteType: overwriteType ?? this.overwriteType,
@@ -732,6 +777,9 @@ class ProfilesCompanion extends UpdateCompanion<RawProfile> {
     }
     if (currentGroupName.present) {
       map['current_group_name'] = Variable<String>(currentGroupName.value);
+    }
+    if (userAgent.present) {
+      map['user_agent'] = Variable<String>(userAgent.value);
     }
     if (url.present) {
       map['url'] = Variable<String>(url.value);
@@ -782,6 +830,7 @@ class ProfilesCompanion extends UpdateCompanion<RawProfile> {
           ..write('id: $id, ')
           ..write('label: $label, ')
           ..write('currentGroupName: $currentGroupName, ')
+          ..write('userAgent: $userAgent, ')
           ..write('url: $url, ')
           ..write('lastUpdateDate: $lastUpdateDate, ')
           ..write('overwriteType: $overwriteType, ')
@@ -3470,6 +3519,7 @@ typedef $$ProfilesTableCreateCompanionBuilder =
       Value<int> id,
       required String label,
       Value<String?> currentGroupName,
+      Value<String?> userAgent,
       required String url,
       Value<DateTime?> lastUpdateDate,
       required OverwriteType overwriteType,
@@ -3486,6 +3536,7 @@ typedef $$ProfilesTableUpdateCompanionBuilder =
       Value<int> id,
       Value<String> label,
       Value<String?> currentGroupName,
+      Value<String?> userAgent,
       Value<String> url,
       Value<DateTime?> lastUpdateDate,
       Value<OverwriteType> overwriteType,
@@ -3565,6 +3616,11 @@ class $$ProfilesTableFilterComposer
 
   ColumnFilters<String> get currentGroupName => $composableBuilder(
     column: $table.currentGroupName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get userAgent => $composableBuilder(
+    column: $table.userAgent,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3701,6 +3757,11 @@ class $$ProfilesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get userAgent => $composableBuilder(
+    column: $table.userAgent,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get url => $composableBuilder(
     column: $table.url,
     builder: (column) => ColumnOrderings(column),
@@ -3771,6 +3832,9 @@ class $$ProfilesTableAnnotationComposer
     column: $table.currentGroupName,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get userAgent =>
+      $composableBuilder(column: $table.userAgent, builder: (column) => column);
 
   GeneratedColumn<String> get url =>
       $composableBuilder(column: $table.url, builder: (column) => column);
@@ -3902,6 +3966,7 @@ class $$ProfilesTableTableManager
                 Value<int> id = const Value.absent(),
                 Value<String> label = const Value.absent(),
                 Value<String?> currentGroupName = const Value.absent(),
+                Value<String?> userAgent = const Value.absent(),
                 Value<String> url = const Value.absent(),
                 Value<DateTime?> lastUpdateDate = const Value.absent(),
                 Value<OverwriteType> overwriteType = const Value.absent(),
@@ -3917,6 +3982,7 @@ class $$ProfilesTableTableManager
                 id: id,
                 label: label,
                 currentGroupName: currentGroupName,
+                userAgent: userAgent,
                 url: url,
                 lastUpdateDate: lastUpdateDate,
                 overwriteType: overwriteType,
@@ -3933,6 +3999,7 @@ class $$ProfilesTableTableManager
                 Value<int> id = const Value.absent(),
                 required String label,
                 Value<String?> currentGroupName = const Value.absent(),
+                Value<String?> userAgent = const Value.absent(),
                 required String url,
                 Value<DateTime?> lastUpdateDate = const Value.absent(),
                 required OverwriteType overwriteType,
@@ -3948,6 +4015,7 @@ class $$ProfilesTableTableManager
                 id: id,
                 label: label,
                 currentGroupName: currentGroupName,
+                userAgent: userAgent,
                 url: url,
                 lastUpdateDate: lastUpdateDate,
                 overwriteType: overwriteType,

@@ -9,6 +9,7 @@ import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/pages/editor.dart';
 import 'package:fl_clash/providers/action.dart';
 import 'package:fl_clash/state.dart';
+import 'package:fl_clash/views/config/general.dart';
 import 'package:fl_clash/widgets/widgets.dart';
 import 'package:flutter/material.dart';
 
@@ -32,6 +33,7 @@ class _EditProfileViewState extends State<EditProfileView> {
   late final TextEditingController _autoUpdateDurationController;
   late bool _autoUpdate;
   String? _rawText;
+  String? _userAgent;
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final _fileInfoNotifier = ValueNotifier<FileInfo?>(null);
   Uint8List? _fileData;
@@ -42,6 +44,7 @@ class _EditProfileViewState extends State<EditProfileView> {
     _labelController = TextEditingController(text: widget.profile.label);
     _urlController = TextEditingController(text: widget.profile.url);
     _autoUpdate = widget.profile.autoUpdate;
+    _userAgent = widget.profile.userAgent;
     _autoUpdateDurationController = TextEditingController(
       text: widget.profile.autoUpdateDuration.inMinutes.toString(),
     );
@@ -67,6 +70,7 @@ class _EditProfileViewState extends State<EditProfileView> {
       url: _urlController.text,
       label: _labelController.text,
       autoUpdate: _autoUpdate,
+      userAgent: _userAgent,
       autoUpdateDuration: Duration(
         minutes: int.parse(_autoUpdateDurationController.text),
       ),
@@ -286,6 +290,33 @@ class _EditProfileViewState extends State<EditProfileView> {
               },
             ),
           ),
+        ListItem(
+          title: const Text('User-Agent'),
+          subtitle: Padding(
+            padding: const EdgeInsets.only(top: 8.0),
+            child: Text(
+              _userAgent ?? 'Global',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+            ),
+          ),
+          onTap: () async {
+            final result = await globalState.showCommonDialog<UaResult>(
+              child: UaDialog(
+                title: 'UA - ${widget.profile.label}',
+                currentUa: _userAgent,
+                defaultLabel: 'Global',
+              ),
+            );
+            if (result == null) return;
+            setState(() {
+              _userAgent = result.value;
+            });
+          },
+        ),
       ],
       ValueListenableBuilder<FileInfo?>(
         valueListenable: _fileInfoNotifier,

@@ -140,9 +140,14 @@ class _ScanPageState extends State<ScanPage> with WidgetsBindingObserver {
               ),
               padding: const EdgeInsets.all(16),
               iconSize: 32.0,
-              onPressed: globalState.container
-                  .read(profilesActionProvider.notifier)
-                  .addProfileFormQrCode,
+              onPressed: () async {
+                final url = await globalState.container
+                    .read(profilesActionProvider.notifier)
+                    .getQrCodeUrl();
+                if (url != null && context.mounted) {
+                  Navigator.pop(context, url);
+                }
+              },
               icon: const Icon(Icons.photo_camera_back),
             ),
           ),

@@ -31,11 +31,14 @@ class Request {
     );
   }
 
-  Future<Response<Uint8List>> getFileResponseForUrl(String url) async {
+  Future<Response<Uint8List>> getFileResponseForUrl(String url, {String? userAgent}) async {
     try {
       return await _clashDio.get<Uint8List>(
         url,
-        options: Options(responseType: ResponseType.bytes),
+        options: Options(
+          responseType: ResponseType.bytes,
+          headers: userAgent != null ? {'User-Agent': userAgent} : null,
+        ),
       );
     } catch (e) {
       commonPrint.log('getFileResponseForUrl error ${e.toString()}');
