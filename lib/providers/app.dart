@@ -6,7 +6,6 @@ import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/core/controller.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
-import 'package:fl_clash/plugins/app.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:flutter/services.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -41,14 +40,6 @@ class Logs extends _$Logs with AutoDisposeNotifierMixin {
     final tempFilePath = await appPath.tempFilePath;
     final file = File(tempFilePath);
     await file.safeWriteAsString(logString);
-    if (system.isOhos) {
-      final value = await app?.writeFileToSharedDownload(
-        tempFilePath,
-        fileName: utils.logFile,
-      );
-      await file.safeDelete();
-      return value != null && value.isNotEmpty;
-    }
     return await picker.saveFileWithPath(utils.logFile, tempFilePath) != null;
   }
 }

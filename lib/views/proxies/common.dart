@@ -48,6 +48,16 @@ void updateCurrentUnfoldSet(Set<String> value) {
       .updateCurrentUnfoldSet(value);
 }
 
+String _redactDelayTestUrl(String url) {
+  final uri = Uri.tryParse(url);
+  if (uri == null || uri.host.isEmpty) {
+    return '<redacted-url>';
+  }
+  final port = uri.hasPort ? ':${uri.port}' : '';
+  final query = uri.query.isEmpty ? '' : '?<redacted>';
+  return '${uri.scheme}://${uri.host}$port${uri.path}$query';
+}
+
 Future<void> proxyDelayTest(Proxy proxy, [String? testUrl]) async {
   final ref = globalState.container;
   final groups = getGroups();
@@ -65,30 +75,44 @@ Future<void> proxyDelayTest(Proxy proxy, [String? testUrl]) async {
   if (state.proxyName.isEmpty) {
     return;
   }
+  final redactedTestUrl = _redactDelayTestUrl(currentTestUrl);
   commonPrint.log(
-    '[proxy-delay] start groupProxy=${proxy.name} targetProxy=${state.proxyName} url=$currentTestUrl',
+    '[proxy-delay] start groupProxy=${proxy.name} '
+    'targetProxy=${state.proxyName} url=$redactedTestUrl',
   );
   ref
       .read(proxiesActionProvider.notifier)
       .setDelay(Delay(url: currentTestUrl, name: state.proxyName, value: 0));
-  final delay = await coreController.getDelay(currentTestUrl, state.proxyName);
-  commonPrint.log(
-    '[proxy-delay] done proxy=${delay.name} url=${delay.url} value=${delay.value}',
-  );
-  ref.read(proxiesActionProvider.notifier).setDelay(delay);
+  try {
+    final delay = await coreController.getDelay(currentTestUrl, state.proxyName);
+    commonPrint.log(
+      '[proxy-delay] done proxy=${delay.name} '
+      'url=${_redactDelayTestUrl(delay.url)} value=${delay.value}',
+    );
+    ref.read(proxiesActionProvider.notifier).setDelay(delay);
+  } catch (error) {
+    commonPrint.log(
+      '[proxy-delay] failed proxy=${state.proxyName} url=$redactedTestUrl error=$error',
+      logLevel: LogLevel.warning,
+    );
+    ref.read(proxiesActionProvider.notifier).setDelay(
+          Delay(url: currentTestUrl, name: state.proxyName, value: -1),
+        );
+  }
 }
 
 Future<void> delayTest(List<Proxy> proxies, [String? testUrl]) async {
   final batchSize = system.isOhos ? 4 : 100;
+  final redactedTestUrl = testUrl == null ? '' : _redactDelayTestUrl(testUrl);
   commonPrint.log(
-    '[proxy-delay] batch start proxies=${proxies.length} testUrl=${testUrl ?? ''}',
+    '[proxy-delay] batch start proxies=${proxies.length} '
+    'testUrl=$redactedTestUrl',
   );
   final batches = proxies.batch(batchSize);
   for (final batch in batches) {
     await Future.wait(
-      batch.map((proxy) async {
-        await proxyDelayTest(proxy, testUrl);
-      }),
+      batch.map((proxy) => proxyDelayTest(proxy, testUrl)),
+      eagerError: false,
     );
   }
   commonPrint.log('[proxy-delay] batch done proxies=${proxies.length}');

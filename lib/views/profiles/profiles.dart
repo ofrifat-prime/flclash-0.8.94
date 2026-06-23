@@ -280,17 +280,6 @@ class ProfileItem extends StatelessWidget {
     final appLocalizations = context.appLocalizations;
     final res = await globalState.safeRun<bool>(() async {
       final mFile = await profile.file;
-      if (system.isOhos) {
-        final value = await app?.writeFileToSharedDownload(
-          mFile.path,
-          fileName: profile.fileName,
-        );
-        commonPrint.log(
-          '[profile-export] ohos writeFileToSharedDownload result=$value '
-          'path=${mFile.path} fileName=${profile.fileName}',
-        );
-        return value != null && value.isNotEmpty;
-      }
       final value = await picker.saveFile(
         profile.realLabel,
         mFile.readAsBytesSync(),

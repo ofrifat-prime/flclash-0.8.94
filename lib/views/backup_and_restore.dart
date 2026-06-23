@@ -8,7 +8,6 @@ import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/action.dart';
 import 'package:fl_clash/providers/app.dart';
 import 'package:fl_clash/providers/config.dart';
-import 'package:fl_clash/plugins/app.dart';
 import 'package:fl_clash/state.dart';
 import 'package:fl_clash/widgets/dialog.dart';
 import 'package:fl_clash/widgets/fade_box.dart';
@@ -33,6 +32,7 @@ class _BackupAndRestoreState extends ConsumerState<BackupAndRestore>
   final _isCompleter = ValueNotifier<bool?>(null);
   DAVProps? _lastProps;
   DAVClient? _client;
+  int _davClientUpdateToken = 0;
 
   Future<void> _updateDAVClient(DAVProps? props) async {
     _client = props == null ? null : DAVClient(props);
@@ -41,18 +41,32 @@ class _BackupAndRestoreState extends ConsumerState<BackupAndRestore>
     _lastProps = props;
     if (rawProps == rawLastProps) {
       return;
-    } else {
-      _isCompleter.value == null;
-      final res = await _client?.ping() ?? false;
-      if (mounted) {
-        _isCompleter.value = res;
-      }
+    }
+    final updateToken = ++_davClientUpdateToken;
+    if (props == null) {
+      _isCompleter.value = null;
+      return;
+    }
+    _isCompleter.value = null;
+    final res = await _client?.ping() ?? false;
+    if (mounted && updateToken == _davClientUpdateToken) {
+      _isCompleter.value = res;
     }
   }
 
   @override
   void initState() {
     super.initState();
+    ref.listenManual<DAVProps?>(davSettingProvider, (_, next) {
+      _updateDAVClient(next);
+    }, fireImmediately: true);
+  }
+
+  @override
+  void dispose() {
+    _davClientUpdateToken++;
+    _isCompleter.dispose();
+    super.dispose();
   }
 
   Future<void> _showAddWebDAV(DAVProps? dav) async {
@@ -122,14 +136,6 @@ class _BackupAndRestoreState extends ConsumerState<BackupAndRestore>
         commonPrint.log('[backup-local] backup path: $path');
         if (path.isEmpty) {
           return false;
-        }
-        if (system.isOhos) {
-          final value = await app?.writeFileToSharedDownload(
-            path,
-            fileName: utils.getBackupFileName(),
-          );
-          commonPrint.log('[backup-local] writeFileToSharedDownload result: $value');
-          return value != null && value.isNotEmpty;
         }
         final value = await picker.saveFileWithPath(
           utils.getBackupFileName(),
@@ -245,7 +251,6 @@ class _BackupAndRestoreState extends ConsumerState<BackupAndRestore>
     final appLocalizations = context.appLocalizations;
     final dav = ref.watch(davSettingProvider);
     final isLoading = ref.watch(loadingProvider(LoadingTag.backup_restore));
-    _updateDAVClient(dav);
     return CommonScaffold(
       isLoading: isLoading,
       title: appLocalizations.backupAndRestore,
