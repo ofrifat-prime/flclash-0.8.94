@@ -22,9 +22,17 @@ function unescapePropertyValue(value) {
 }
 
 function readFlutterSdk(appHome) {
+  const value = readLocalProperty(appHome, 'flutter.sdk');
+  if (value) {
+    return value;
+  }
+  return process.env.FLUTTER_ROOT || process.env.FLUTTER_SDK || '';
+}
+
+function readLocalProperty(appHome, propertyName) {
   const localPropertiesPath = path.join(appHome, 'local.properties');
   if (!fs.existsSync(localPropertiesPath)) {
-    return process.env.FLUTTER_ROOT || process.env.FLUTTER_SDK || '';
+    return '';
   }
 
   const content = fs.readFileSync(localPropertiesPath, 'utf8');
@@ -38,14 +46,14 @@ function readFlutterSdk(appHome) {
       continue;
     }
     const key = trimmed.slice(0, separatorIndex).trim();
-    if (key !== 'flutter.sdk') {
+    if (key !== propertyName) {
       continue;
     }
     const value = trimmed.slice(separatorIndex + 1).trim();
     return unescapePropertyValue(value);
   }
 
-  return process.env.FLUTTER_ROOT || process.env.FLUTTER_SDK || '';
+  return '';
 }
 
 const appHome = path.resolve(__dirname, '..');
@@ -54,10 +62,47 @@ if (!flutterSdk) {
   fail('Unable to resolve the Flutter SDK. Set FLUTTER_ROOT or add flutter.sdk to ohos/local.properties.');
 }
 
+function resolveCommand(command) {
+  try {
+    return childProcess.execFileSync('bash', ['-lc', `command -v ${command}`], {
+      encoding: 'utf8',
+    }).trim();
+  } catch (_) {
+    return '';
+  }
+}
+
+function resolveHvigorwPath() {
+  const explicitPath = process.env.FLCLASH_HVIGORW || process.env.HVIGORW || '';
+  if (explicitPath && fs.existsSync(explicitPath)) {
+    return explicitPath;
+  }
+
+  const pathHvigorw = resolveCommand('hvigorw');
+  if (pathHvigorw) {
+    return pathHvigorw;
+  }
+
+  const nodejsDir = readLocalProperty(appHome, 'nodejs.dir');
+  if (nodejsDir) {
+    const devEcoToolsDir = path.dirname(nodejsDir);
+    const devEcoHvigorw = path.join(devEcoToolsDir, 'hvigor', 'bin', 'hvigorw');
+    if (fs.existsSync(devEcoHvigorw)) {
+      return devEcoHvigorw;
+    }
+  }
+
+  const defaultDevEcoHvigorw =
+      '/Applications/DevEco-Studio.app/Contents/tools/hvigor/bin/hvigorw';
+  if (fs.existsSync(defaultDevEcoHvigorw)) {
+    return defaultDevEcoHvigorw;
+  }
+
+  fail('Unable to locate hvigorw. Set FLCLASH_HVIGORW or add hvigorw to PATH.');
+}
+
 function getBundledHvigorVersion() {
-  const hvigorwPath = childProcess.execFileSync('bash', ['-lc', 'command -v hvigorw'], {
-    encoding: 'utf8',
-  }).trim();
+  const hvigorwPath = resolveHvigorwPath();
   const hvigorBinDir = path.dirname(hvigorwPath);
   const toolRoot = path.dirname(hvigorBinDir);
   const packageJsonPath = path.join(toolRoot, 'hvigor', 'package.json');
@@ -66,10 +111,50 @@ function getBundledHvigorVersion() {
 }
 
 function getHvigorToolRoot() {
-  const hvigorwPath = childProcess.execFileSync('bash', ['-lc', 'command -v hvigorw'], {
-    encoding: 'utf8',
-  }).trim();
+  const hvigorwPath = resolveHvigorwPath();
   return path.dirname(path.dirname(hvigorwPath));
+}
+
+function getBundledNodePath() {
+  const nodejsDir = readLocalProperty(appHome, 'nodejs.dir');
+  if (nodejsDir) {
+    const nodePath = path.join(nodejsDir, 'bin', 'node');
+    if (fs.existsSync(nodePath)) {
+      return nodePath;
+    }
+  }
+
+  const pathNode = resolveCommand('node');
+  if (pathNode) {
+    return pathNode;
+  }
+
+  return process.execPath;
+}
+
+function relaunchWithBundledNodeIfNeeded() {
+  if (process.env.FLCLASH_HVIGOR_NODE_RELAUNCHED === '1') {
+    return;
+  }
+
+  const nodePath = getBundledNodePath();
+  if (path.resolve(nodePath) === path.resolve(process.execPath)) {
+    return;
+  }
+
+  const result = childProcess.spawnSync(nodePath, process.argv.slice(1), {
+    env: {
+      ...process.env,
+      FLCLASH_HVIGOR_NODE_RELAUNCHED: '1',
+    },
+    stdio: 'inherit',
+  });
+
+  if (result.error) {
+    fail(`Unable to launch bundled Node: ${result.error.message}`);
+  }
+
+  process.exit(result.status ?? 1);
 }
 
 function readHvigorConfig() {
@@ -95,19 +180,20 @@ function getHvigorWorkspaceDir() {
   return path.join(hvigorUserHome, 'project_caches', projectHash, 'workspace');
 }
 
+function removePathSync(target) {
+  if (!fs.existsSync(target)) {
+    return;
+  }
+  const stat = fs.lstatSync(target);
+  if (stat.isDirectory() && !stat.isSymbolicLink()) {
+    fs.rmSync(target, {recursive: true, force: true});
+    return;
+  }
+  fs.rmSync(target, {force: true});
+}
+
 function ensureSymlink(targetPath, linkPath) {
   fs.mkdirSync(path.dirname(linkPath), {recursive: true});
-  const removePathSync = (target) => {
-    if (!fs.existsSync(target)) {
-      return;
-    }
-    const stat = fs.lstatSync(target);
-    if (stat.isDirectory() && !stat.isSymbolicLink()) {
-      fs.rmSync(target, {recursive: true, force: true});
-      return;
-    }
-    fs.rmSync(target, {force: true});
-  };
   try {
     const currentTarget = fs.readlinkSync(linkPath);
     if (path.resolve(path.dirname(linkPath), currentTarget) === targetPath) {
@@ -271,6 +357,88 @@ function patchOhosPackageForNativeHar(appHome, flutterSdk) {
   };
 }
 
+const entryHarDependencies = {
+  window_ext: 'file:../har/window_ext.har',
+  wifi_ssid: 'file:../har/wifi_ssid.har',
+  setup: 'file:../har/setup.har',
+  rust_api: 'file:../har/rust_api.har',
+  proxy: 'file:../har/proxy.har',
+};
+
+function patchEntryHarDependencies(appHome) {
+  const entryPackagePath = path.join(appHome, 'entry', 'oh-package.json5');
+  if (!fs.existsSync(entryPackagePath)) {
+    return () => {};
+  }
+
+  const originalContent = fs.readFileSync(entryPackagePath, 'utf8');
+  const packageConfig = JSON.parse(originalContent);
+  packageConfig.dependencies = {
+    ...(packageConfig.dependencies || {}),
+    ...entryHarDependencies,
+  };
+  fs.writeFileSync(entryPackagePath, `${JSON.stringify(packageConfig, null, 2)}\n`);
+
+  removePathSync(path.join(appHome, 'entry', 'oh-package-lock.json5'));
+  for (const packageName of Object.keys(entryHarDependencies)) {
+    removePathSync(path.join(appHome, 'entry', 'oh_modules', packageName));
+  }
+
+  return () => {
+    fs.writeFileSync(entryPackagePath, originalContent);
+  };
+}
+
+function restoreCustomGeneratedPluginRegistrant(appHome) {
+  const registrantPath = path.join(
+      appHome,
+      'entry',
+      'src',
+      'main',
+      'ets',
+      'plugins',
+      'GeneratedPluginRegistrant.ets',
+  );
+  if (!fs.existsSync(registrantPath)) {
+    return;
+  }
+
+  const customRegistrant = `import { FlutterEngine, Log } from '@ohos/flutter_ohos';
+import AppPlugin from './AppPlugin';
+import FilePickerPlugin from './FilePickerPlugin';
+
+/**
+ * Generated file. Do not edit.
+ * This file is generated by the Flutter tool based on the
+ * plugins that support the Ohos platform.
+ */
+
+const TAG = "GeneratedPluginRegistrant";
+
+export class GeneratedPluginRegistrant {
+
+  static registerWith(flutterEngine: FlutterEngine) {
+    try {
+      const plugins = flutterEngine.getPlugins();
+      if (plugins != null) {
+        plugins.add(new AppPlugin());
+        plugins.add(new FilePickerPlugin());
+      }
+    } catch (e) {
+      Log.e(
+        TAG,
+        "Tried to register plugins with FlutterEngine ("
+          + flutterEngine
+          + ") failed.");
+      Log.e(TAG, "Received exception while registering", e);
+    }
+  }
+}
+`;
+
+  fs.writeFileSync(registrantPath, customRegistrant);
+}
+
 const upstreamWrapperPath = path.join(
     path.resolve(flutterSdk),
     'engine',
@@ -283,6 +451,8 @@ const upstreamWrapperPath = path.join(
     'hvigor',
     'hvigor-wrapper.js',
 );
+
+relaunchWithBundledNodeIfNeeded();
 
 if (!fs.existsSync(upstreamWrapperPath)) {
   fail(`Unable to find the upstream Flutter OHOS hvigor wrapper at ${upstreamWrapperPath}`);
@@ -312,8 +482,11 @@ prepareOpenHarmonySigningAssets({
 prepareBundledHvigorWorkspace();
 prepareNodePath();
 const restorePackage = patchOhosPackageForNativeHar(appHome, flutterSdk);
+const restoreEntryPackage = patchEntryHarDependencies(appHome);
+restoreCustomGeneratedPluginRegistrant(appHome);
 const restoreFs = patchHvigorConfigForUpstreamWrapper();
 process.on('exit', () => {
+  restoreEntryPackage();
   restorePackage();
   restoreFs();
 });
