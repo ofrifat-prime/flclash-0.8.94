@@ -34,6 +34,26 @@ on Mobile:
 
 ✨ 支持一键导入订阅, 深色模式
 
+## Android 分支说明
+
+这个 fork 分支主要面向仅 Android 使用的场景，包含以下改动：
+
+- 优化 Wi-Fi SSID 切换时的按需运行。Android 服务现在会在原生层监听网络变化，去重 SSID 状态变化，并且只在命中排除 SSID 且 Wi-Fi 已验证可用时挂起 VPN。
+- 按需挂起时继续保留 `VpnService` 前台服务，离开排除 SSID 后无需重新打开 App 也能恢复 VPN。
+- 降低后台工作量：UI 不在前台时暂停流量、日志、连接列表刷新；挂起状态下降低通知刷新频率；DNS 更新做去重。
+- 通过 `core/Clash.Meta` 子模块把内置 mihomo core 升级到基于上游 `v1.19.27` 的分支。
+- Android 构建收敛到 `android-arm64`，适合只在 arm64 Android 真机上使用和调试。
+
+这个分支已经执行过以下验证：
+
+```bash
+go test ./...
+plugins/setup/buildkit/run_build_tool.cmd android --arch arm64
+cd android && ./gradlew.bat :app:assembleDebug
+```
+
+debug APK 已安装到 Android 真机做冒烟测试。App 主进程、remote 进程和前台 `VpnService` 均可正常启动，logcat / exit-info 未发现 crash 或 ANR。
+
 ## Use
 
 ### Linux

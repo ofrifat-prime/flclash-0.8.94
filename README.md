@@ -34,6 +34,26 @@ on Mobile:
 
 ✨ Support subscription link, Dark mode
 
+## Android branch notes
+
+This fork branch focuses on Android-only usage and includes the following changes:
+
+- Improves on-demand VPN handling for Wi-Fi SSID changes. The Android service now observes network changes natively, deduplicates SSID state changes, and only suspends VPN when the excluded SSID is connected and validated.
+- Keeps `VpnService` alive as a foreground service while on-demand mode is suspended, so leaving the excluded SSID can resume VPN without reopening the app.
+- Reduces background work by pausing traffic, logs, and connection refreshes when the UI is not in the foreground, throttling suspended-state notifications, and deduplicating DNS updates.
+- Updates the bundled mihomo core through the `core/Clash.Meta` submodule to a branch based on upstream `v1.19.27`.
+- Narrows Android build output toward `android-arm64` for smaller and faster local Android-only builds.
+
+Validation performed on this branch:
+
+```bash
+go test ./...
+plugins/setup/buildkit/run_build_tool.cmd android --arch arm64
+cd android && ./gradlew.bat :app:assembleDebug
+```
+
+The debug APK was installed on a real Android device for a smoke test. The app, remote process, and foreground `VpnService` started successfully without crash or ANR in logcat / exit-info.
+
 ## Use
 
 ### Linux
