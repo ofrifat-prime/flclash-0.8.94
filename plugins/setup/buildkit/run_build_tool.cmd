@@ -4,7 +4,10 @@ setlocal
 setlocal ENABLEDELAYEDEXPANSION
 
 SET BASEDIR=%~dp0
-SET PROJECT_DIR=%CD%
+if "%PROJECT_DIR%"=="" (
+    SET PROJECT_DIR=%BASEDIR%..\..\..
+)
+for %%I in ("%PROJECT_DIR%") do SET PROJECT_DIR=%%~fI
 
 if not exist "%PROJECT_DIR%\pubspec.yaml" (
     echo Error: Could not find project root at "%PROJECT_DIR%"
@@ -23,7 +26,11 @@ if not exist "%BUILD_TOOL_TEMP_DIR%" (
 )
 cd /D "%BUILD_TOOL_TEMP_DIR%"
 
-SET DART=%FLUTTER_ROOT%\bin\cache\dart-sdk\bin\dart
+if "%FLUTTER_ROOT%"=="" (
+    SET DART=dart
+) else (
+    SET DART=%FLUTTER_ROOT%\bin\cache\dart-sdk\bin\dart
+)
 
 set BUILD_TOOL_PKG_DIR_POSIX=%BUILD_TOOL_PKG_DIR:\=/%
 
@@ -93,16 +100,16 @@ REM There is no CUR_PACKAGE_INFO it was renamed in previous step to %PREV_PACKAG
 REM which means we need to do pub get and precompile
 if not exist "%PRECOMPILED%" (
     echo Running pub get in "%cd%"
-    "%DART%" pub get --no-precompile
-    "%DART%" compile kernel bin/build_tool_runner.dart
+    call "%DART%" pub get --no-precompile
+    call "%DART%" compile kernel bin/build_tool_runner.dart
 )
 
-"%DART%" "%PRECOMPILED%" %* --root-dir "%PROJECT_DIR%"
+call "%DART%" "%PRECOMPILED%" %* --root-dir "%PROJECT_DIR%"
 
 REM 253 means invalid snapshot version.
 If %ERRORLEVEL% equ 253 (
-    "%DART%" pub get --no-precompile
-    "%DART%" compile kernel bin/build_tool_runner.dart
-    "%DART%" "%PRECOMPILED%" %* --root-dir "%PROJECT_DIR%"
+    call "%DART%" pub get --no-precompile
+    call "%DART%" compile kernel bin/build_tool_runner.dart
+    call "%DART%" "%PRECOMPILED%" %* --root-dir "%PROJECT_DIR%"
 )
 exit /b %ERRORLEVEL%

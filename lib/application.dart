@@ -23,9 +23,10 @@ class Application extends ConsumerStatefulWidget {
   ConsumerState<Application> createState() => ApplicationState();
 }
 
-class ApplicationState extends ConsumerState<Application> {
-  Timer? _autoUpdateProfilesTaskTimer;
+class ApplicationState extends ConsumerState<Application>
+    with WidgetsBindingObserver {
   bool _preHasVpn = false;
+  bool _isUiForeground = true;
 
   final _pageTransitionsTheme = const PageTransitionsTheme(
     builders: <TargetPlatform, PageTransitionsBuilder>{
@@ -46,13 +47,14 @@ class ApplicationState extends ConsumerState<Application> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _isUiForeground = _readUiForeground();
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) async {
       if (globalState.navigatorKey.currentContext != null) {
         await globalState.attach();
       } else {
         exit(0);
       }
-      _autoUpdateProfilesTask();
       _initLink();
       app?.initShortcuts();
     });
@@ -82,11 +84,22 @@ class ApplicationState extends ConsumerState<Application> {
     });
   }
 
-  void _autoUpdateProfilesTask() {
-    _autoUpdateProfilesTaskTimer = Timer(const Duration(minutes: 20), () async {
-      await ref.read(profilesActionProvider.notifier).autoUpdateProfiles();
-      _autoUpdateProfilesTask();
-    });
+  bool _readUiForeground() {
+    final lifecycleState = WidgetsBinding.instance.lifecycleState;
+    return lifecycleState == null ||
+        lifecycleState == AppLifecycleState.resumed;
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final isForeground = state == AppLifecycleState.resumed;
+    if (_isUiForeground == isForeground) {
+      return;
+    }
+    _isUiForeground = isForeground;
+    if (isForeground) {
+      unawaited(ref.read(profilesActionProvider.notifier).autoUpdateProfiles());
+    }
   }
 
   Widget _buildPlatformState({required Widget child}) {
@@ -186,8 +199,8 @@ class ApplicationState extends ConsumerState<Application> {
 
   @override
   Future<void> dispose() async {
+    WidgetsBinding.instance.removeObserver(this);
     linkManager.destroy();
-    _autoUpdateProfilesTaskTimer?.cancel();
     await coreController.destroy();
     await ref.read(systemActionProvider.notifier).handleExit();
     super.dispose();

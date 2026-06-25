@@ -12,6 +12,8 @@ object State {
     var notificationParamsFlow: MutableStateFlow<NotificationParams?> = MutableStateFlow(
         NotificationParams()
     )
+    var onDemandExcludeSSIDsFlow: MutableStateFlow<List<String>> = MutableStateFlow(emptyList())
+    var onDemandSuspendedFlow: MutableStateFlow<Boolean> = MutableStateFlow(false)
 
     val runLock = Mutex()
     var runTime: Long = 0L

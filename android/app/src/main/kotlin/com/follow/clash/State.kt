@@ -124,6 +124,7 @@ object State {
                 onlyStatisticsProxy = sharedState.onlyStatisticsProxy
             )
         )
+        Service.updateOnDemandRules(sharedState.onDemandExcludeSSIDs)
         Service.setCrashlytics(sharedState.crashlytics)
     }
 

@@ -13,6 +13,8 @@ import com.follow.clash.service.State.intent
 import com.follow.clash.service.State.runLock
 import com.follow.clash.service.models.NotificationParams
 import com.follow.clash.service.models.VpnOptions
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -24,6 +26,9 @@ import kotlin.coroutines.resume
 
 class RemoteService : Service(),
     CoroutineScope by CoroutineScope(SupervisorJob() + Dispatchers.Default) {
+    private val gson = Gson()
+    private val stringListType = object : TypeToken<List<String>>() {}.type
+
     private fun handleStopService(result: IResultInterface) {
         launch {
             runLock.withLock {
@@ -129,6 +134,13 @@ class RemoteService : Service(),
 
         override fun updateNotificationParams(params: NotificationParams?) {
             State.notificationParamsFlow.tryEmit(params)
+        }
+
+        override fun updateOnDemandRules(excludeSSIDs: String?) {
+            val rules = runCatching {
+                gson.fromJson<List<String>>(excludeSSIDs ?: "[]", stringListType)
+            }.getOrNull() ?: emptyList()
+            State.onDemandExcludeSSIDsFlow.tryEmit(rules)
         }
 
 

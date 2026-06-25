@@ -13,6 +13,7 @@ import com.follow.clash.service.IVoidInterface
 import com.follow.clash.service.RemoteService
 import com.follow.clash.service.models.NotificationParams
 import com.follow.clash.service.models.VpnOptions
+import com.google.gson.Gson
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -27,6 +28,7 @@ object Service {
     }
 
     var onServiceDisconnected: ((String) -> Unit)? = null
+    private val gson = Gson()
 
     private fun handleServiceDisconnected(message: String) {
         onServiceDisconnected?.let {
@@ -130,6 +132,14 @@ object Service {
     ): Result<Unit> {
         return delegate.useService {
             it.updateNotificationParams(params)
+        }
+    }
+
+    suspend fun updateOnDemandRules(
+        excludeSSIDs: List<String>
+    ): Result<Unit> {
+        return delegate.useService {
+            it.updateOnDemandRules(gson.toJson(excludeSSIDs))
         }
     }
 

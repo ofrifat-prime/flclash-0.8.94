@@ -17,13 +17,15 @@ class ConnectionsView extends ConsumerStatefulWidget {
   ConsumerState<ConnectionsView> createState() => _ConnectionsViewState();
 }
 
-class _ConnectionsViewState extends ConsumerState<ConnectionsView> {
+class _ConnectionsViewState extends ConsumerState<ConnectionsView>
+    with WidgetsBindingObserver {
   final _connectionsStateNotifier = ValueNotifier<TrackerInfosState>(
     const TrackerInfosState(),
   );
   final ScrollController _scrollController = ScrollController();
 
   Timer? timer;
+  bool _isUiForeground = true;
 
   List<Widget> _buildActions() {
     return [
@@ -51,7 +53,7 @@ class _ConnectionsViewState extends ConsumerState<ConnectionsView> {
 
   Future<void> _updateConnectionsTask() async {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (mounted) {
+      if (mounted && _isUiForeground) {
         await _updateConnections();
         timer = Timer(const Duration(seconds: 1), () async {
           _updateConnectionsTask();
@@ -60,10 +62,42 @@ class _ConnectionsViewState extends ConsumerState<ConnectionsView> {
     });
   }
 
+  bool _readUiForeground() {
+    final lifecycleState = WidgetsBinding.instance.lifecycleState;
+    return lifecycleState == null || lifecycleState == AppLifecycleState.resumed;
+  }
+
+  void _syncRefreshTimer({bool updateImmediately = false}) {
+    timer?.cancel();
+    timer = null;
+    if (!_isUiForeground) {
+      return;
+    }
+    if (updateImmediately) {
+      _updateConnectionsTask();
+      return;
+    }
+    timer = Timer(const Duration(seconds: 1), () {
+      _updateConnectionsTask();
+    });
+  }
+
   @override
   void initState() {
     super.initState();
-    _updateConnectionsTask();
+    WidgetsBinding.instance.addObserver(this);
+    _isUiForeground = _readUiForeground();
+    _syncRefreshTimer(updateImmediately: true);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final isForeground = state == AppLifecycleState.resumed;
+    if (_isUiForeground == isForeground) {
+      return;
+    }
+    _isUiForeground = isForeground;
+    _syncRefreshTimer(updateImmediately: isForeground);
   }
 
   Future<void> _updateConnections() async {
@@ -80,6 +114,7 @@ class _ConnectionsViewState extends ConsumerState<ConnectionsView> {
   @override
   void dispose() {
     timer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     _connectionsStateNotifier.dispose();
     _scrollController.dispose();
     timer = null;

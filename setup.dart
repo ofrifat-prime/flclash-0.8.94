@@ -55,7 +55,9 @@ Future<void> main(List<String> args) async {
   final rootDir = Directory.current.path;
   final arch = _detectArch();
   final targets = _getTargets(platform, arch, results['targets']);
-  final androidArch = results['arch'] as String?;
+  final androidArch = platform == 'android'
+      ? (results['arch'] as String? ?? 'arm64')
+      : results['arch'] as String?;
   final verbose = results['verbose'] as bool;
 
   final exitCode = await _package(

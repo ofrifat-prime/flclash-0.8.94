@@ -114,6 +114,7 @@ class CommonAction extends _$CommonAction {
 class SetupAction extends _$SetupAction {
   Timer? _updateTimer;
   DateTime? startTime;
+  bool _isUiForeground = true;
 
   bool get isStart => startTime != null && startTime!.isBeforeNow;
 
@@ -139,15 +140,50 @@ class SetupAction extends _$SetupAction {
   Future<void> _handleStart() async {
     startTime ??= DateTime.now();
     //The local status must be updated when performing the run task
-    ref.read(commonActionProvider.notifier).updateRunTime();
-    ref.read(commonActionProvider.notifier).updateTraffic();
-    if (!ref.read(suspendProvider)) {
+    _isUiForeground = _readUiForeground();
+    await _updateLocalStatus();
+    if (system.isAndroid || !ref.read(suspendProvider)) {
       await coreController.startListener();
     }
+    _syncUpdateTimer();
+  }
+
+  bool _readUiForeground() {
+    final lifecycleState = WidgetsBinding.instance.lifecycleState;
+    return lifecycleState == null || lifecycleState == AppLifecycleState.resumed;
+  }
+
+  Future<void> _updateLocalStatus() async {
+    final commonAction = ref.read(commonActionProvider.notifier);
+    commonAction.updateRunTime();
+    if (_isUiForeground) {
+      await commonAction.updateTraffic();
+    }
+  }
+
+  void _syncUpdateTimer({bool updateImmediately = false}) {
+    _updateTimer?.cancel();
+    _updateTimer = null;
+    if (!isStart || !_isUiForeground) {
+      if (updateImmediately) {
+        ref.read(commonActionProvider.notifier).updateRunTime();
+      }
+      return;
+    }
+    if (updateImmediately) {
+      unawaited(_updateLocalStatus());
+    }
     _updateTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      ref.read(commonActionProvider.notifier).updateRunTime();
-      ref.read(commonActionProvider.notifier).updateTraffic();
+      unawaited(_updateLocalStatus());
     });
+  }
+
+  void updateUiForeground(bool isForeground) {
+    if (_isUiForeground == isForeground) {
+      return;
+    }
+    _isUiForeground = isForeground;
+    _syncUpdateTimer(updateImmediately: isForeground);
   }
 
   Future _updateStartTime() async {

@@ -18,11 +18,14 @@ import com.follow.clash.service.models.getIpv4RouteAddress
 import com.follow.clash.service.models.getIpv6RouteAddress
 import com.follow.clash.service.models.toCIDR
 import com.follow.clash.service.modules.NetworkObserveModule
+import com.follow.clash.service.modules.OnDemandModule
 import com.follow.clash.service.modules.NotificationModule
 import com.follow.clash.service.modules.SuspendModule
 import com.follow.clash.service.modules.moduleLoader
+import com.google.gson.Gson
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import java.util.UUID
 import java.net.InetSocketAddress
 import android.net.VpnService as SystemVpnService
 
@@ -34,9 +37,17 @@ class VpnService : SystemVpnService(), IBaseService,
 
     private val loader = moduleLoader {
         install(NetworkObserveModule(self))
+        install(OnDemandModule(self))
         install(NotificationModule(self))
         install(SuspendModule(self))
     }
+    private val gson = Gson()
+    @Volatile
+    private var isLoaded = false
+    @Volatile
+    private var isTunStarted = false
+    @Volatile
+    private var isOnDemandSuspended = false
 
     override fun onCreate() {
         super.onCreate()
@@ -231,22 +242,78 @@ class VpnService : SystemVpnService(), IBaseService,
             options.address,
             options.dns
         )
+        isTunStarted = true
+    }
+
+    private fun startTun() {
+        if (isTunStarted || isOnDemandSuspended) {
+            return
+        }
+        State.options?.let {
+            GlobalState.log("VpnService start TUN")
+            handleStart(it)
+        }
+    }
+
+    private fun stopTun() {
+        if (!isTunStarted) {
+            return
+        }
+        GlobalState.log("VpnService stop TUN")
+        Core.stopTun()
+        isTunStarted = false
+    }
+
+    private fun invokeCore(method: String, onResult: (() -> Unit)? = null) {
+        val data = gson.toJson(
+            mapOf(
+                "id" to "vpnService#${UUID.randomUUID()}",
+                "method" to method,
+            )
+        )
+        Core.invokeAction(data) {
+            GlobalState.log("VpnService $method result: $it")
+            onResult?.invoke()
+        }
+    }
+
+    fun setOnDemandSuspended(next: Boolean) {
+        if (isOnDemandSuspended == next) {
+            return
+        }
+        isOnDemandSuspended = next
+        State.onDemandSuspendedFlow.value = next
+        GlobalState.log("VpnService on-demand suspended: $next")
+        if (next) {
+            stopTun()
+            invokeCore("stopListener")
+            return
+        }
+        invokeCore("startListener") {
+            startTun()
+        }
     }
 
     override fun start() {
         try {
-            loader.load()
-            State.options?.let {
-                handleStart(it)
+            if (!isLoaded) {
+                loader.load()
+                isLoaded = true
             }
+            startTun()
         } catch (_: Exception) {
             stop()
         }
     }
 
     override fun stop() {
-        loader.cancel()
-        Core.stopTun()
+        isOnDemandSuspended = false
+        State.onDemandSuspendedFlow.value = false
+        stopTun()
+        if (isLoaded) {
+            loader.cancel()
+            isLoaded = false
+        }
         stopSelf()
     }
 

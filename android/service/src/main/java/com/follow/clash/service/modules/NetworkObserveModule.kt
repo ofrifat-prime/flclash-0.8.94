@@ -11,6 +11,12 @@ import android.net.NetworkRequest
 import android.os.Build
 import androidx.core.content.getSystemService
 import com.follow.clash.core.Core
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.net.Inet4Address
 import java.net.Inet6Address
 import java.net.InetAddress
@@ -29,6 +35,8 @@ class NetworkObserveModule(private val service: Service) : Module() {
         service.getSystemService<ConnectivityManager>()
     }
     private var preDnsList = listOf<String>()
+    private val scope = CoroutineScope(Dispatchers.Default)
+    private var updateJob: Job? = null
 
     private val request = NetworkRequest.Builder().apply {
         addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)
@@ -42,27 +50,27 @@ class NetworkObserveModule(private val service: Service) : Module() {
     private val callback = object : ConnectivityManager.NetworkCallback() {
         override fun onAvailable(network: Network) {
             networkInfos[network] = NetworkInfo()
-            onUpdateNetwork()
+            scheduleUpdateNetwork()
             super.onAvailable(network)
         }
 
         override fun onLosing(network: Network, maxMsToLive: Int) {
             networkInfos[network]?.losingMs = System.currentTimeMillis() + maxMsToLive
-            onUpdateNetwork()
+            scheduleUpdateNetwork()
             setUnderlyingNetworks(network)
             super.onLosing(network, maxMsToLive)
         }
 
         override fun onLost(network: Network) {
             networkInfos.remove(network)
-            onUpdateNetwork()
+            scheduleUpdateNetwork()
             setUnderlyingNetworks(network)
             super.onLost(network)
         }
 
         override fun onLinkPropertiesChanged(network: Network, linkProperties: LinkProperties) {
             networkInfos[network]?.dnsList = linkProperties.dnsServers
-            onUpdateNetwork()
+            scheduleUpdateNetwork()
             setUnderlyingNetworks(network)
             super.onLinkPropertiesChanged(network, linkProperties)
         }
@@ -72,6 +80,15 @@ class NetworkObserveModule(private val service: Service) : Module() {
     override fun onInstall() {
         onUpdateNetwork()
         connectivity?.registerNetworkCallback(request, callback)
+    }
+
+    @Synchronized
+    private fun scheduleUpdateNetwork() {
+        updateJob?.cancel()
+        updateJob = scope.launch {
+            delay(500)
+            onUpdateNetwork()
+        }
     }
 
     private fun networkToInt(entry: Map.Entry<Network, NetworkInfo>): Int {
@@ -113,8 +130,11 @@ class NetworkObserveModule(private val service: Service) : Module() {
 
     override fun onUninstall() {
         connectivity?.unregisterNetworkCallback(callback)
+        updateJob?.cancel()
+        updateJob = null
         networkInfos.clear()
         onUpdateNetwork()
+        scope.cancel()
     }
 }
 

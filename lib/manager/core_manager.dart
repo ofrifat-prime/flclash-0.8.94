@@ -20,7 +20,10 @@ class CoreManager extends ConsumerStatefulWidget {
 }
 
 class _CoreContainerState extends ConsumerState<CoreManager>
-    with CoreEventListener {
+    with CoreEventListener, WidgetsBindingObserver {
+  bool _openLogs = false;
+  bool _isLogStarted = false;
+
   @override
   Widget build(BuildContext context) {
     return widget.child;
@@ -29,6 +32,7 @@ class _CoreContainerState extends ConsumerState<CoreManager>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     coreEventManager.addListener(this);
     ref.listenManual(currentProfileIdProvider, (prev, next) {
       if (prev != next) {
@@ -46,18 +50,43 @@ class _CoreContainerState extends ConsumerState<CoreManager>
       prev,
       next,
     ) {
-      if (next) {
-        coreController.startLog();
-      } else {
-        coreController.stopLog();
-      }
+      _openLogs = next;
+      _syncLogSubscription();
     }, fireImmediately: true);
   }
 
   @override
-  Future<void> dispose() async {
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     coreEventManager.removeListener(this);
+    if (_isLogStarted) {
+      _isLogStarted = false;
+      coreController.stopLog();
+    }
     super.dispose();
+  }
+
+  bool _readUiForeground() {
+    final lifecycleState = WidgetsBinding.instance.lifecycleState;
+    return lifecycleState == null || lifecycleState == AppLifecycleState.resumed;
+  }
+
+  void _syncLogSubscription() {
+    final shouldStart = _openLogs && _readUiForeground();
+    if (_isLogStarted == shouldStart) {
+      return;
+    }
+    _isLogStarted = shouldStart;
+    if (shouldStart) {
+      coreController.startLog();
+    } else {
+      coreController.stopLog();
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _syncLogSubscription();
   }
 
   @override
@@ -81,6 +110,9 @@ class _CoreContainerState extends ConsumerState<CoreManager>
 
   @override
   void onRequest(TrackerInfo trackerInfo) async {
+    if (!_readUiForeground()) {
+      return;
+    }
     ref.read(requestsProvider.notifier).addRequest(trackerInfo);
     super.onRequest(trackerInfo);
   }

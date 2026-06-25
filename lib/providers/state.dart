@@ -604,6 +604,7 @@ SharedState sharedState(Ref ref) {
   final bypassDomain = ref.watch(
     networkSettingProvider.select((state) => state.bypassDomain),
   );
+  final excludeSSIDs = ref.watch(excludeSSIDsProvider);
   final clashConfigVM2 = ref.watch(
     patchClashConfigProvider.select(
       (state) => VM2(state.tun.stack.name, state.mixedPort),
@@ -622,6 +623,7 @@ SharedState sharedState(Ref ref) {
     onlyStatisticsProxy: onlyStatisticsProxy,
     stopText: currentAppLocalizations.stop,
     crashlytics: crashlytics,
+    onDemandExcludeSSIDs: excludeSSIDs,
     stopTip: currentAppLocalizations.stopVpn,
     startTip: currentAppLocalizations.startVpn,
     setupParams: SetupParams(selectedMap: selectedMap, testUrl: testUrl),

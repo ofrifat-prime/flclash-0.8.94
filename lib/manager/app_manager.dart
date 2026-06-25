@@ -46,6 +46,9 @@ class _AppStateManagerState extends ConsumerState<AppStateManager>
       }
     });
     ref.listenManual(suspendProvider, (prev, next) {
+      if (system.isAndroid) {
+        return;
+      }
       final isStart = ref.read(isStartProvider);
       if (prev != next && isStart) {
         debouncer.call(FunctionTag.suspend, () async {
@@ -81,6 +84,9 @@ class _AppStateManagerState extends ConsumerState<AppStateManager>
   @override
   Future<void> didChangeAppLifecycleState(AppLifecycleState state) async {
     commonPrint.log('$state');
+    globalState.container
+        .read(setupActionProvider.notifier)
+        .updateUiForeground(state == AppLifecycleState.resumed);
     if (state == AppLifecycleState.resumed) {
       permissions.check();
       render?.resume();
