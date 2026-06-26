@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:fl_clash/common/common.dart';
@@ -8,6 +9,7 @@ import 'package:fl_clash/state.dart';
 import 'package:fl_clash/widgets/widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_monaco/flutter_monaco.dart' as monaco;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:re_editor/re_editor.dart';
 import 'package:re_highlight/languages/javascript.dart';
@@ -15,8 +17,37 @@ import 'package:re_highlight/languages/json.dart';
 import 'package:re_highlight/languages/yaml.dart';
 import 'package:re_highlight/styles/atom-one-light.dart';
 
-typedef EditingValueChangeBuilder = Widget Function(CodeLineEditingValue value);
+typedef EditingValueChangeBuilder = Widget Function(String value);
 typedef TextEditingValueChangeBuilder = Widget Function(TextEditingValue value);
+
+monaco.MonacoLanguage editorMonacoLanguageFor(List<Language> languages) {
+  if (languages.contains(Language.javaScript)) {
+    return monaco.MonacoLanguage.javascript;
+  }
+  if (languages.contains(Language.json)) {
+    return monaco.MonacoLanguage.json;
+  }
+  return monaco.MonacoLanguage.yaml;
+}
+
+monaco.EditorOptions editorMonacoOptions({
+  required monaco.MonacoLanguage language,
+  required bool readOnly,
+  required double fontSize,
+  required String fontFamily,
+}) {
+  return monaco.EditorOptions(
+    language: language,
+    theme: monaco.MonacoTheme.vs,
+    fontSize: fontSize,
+    fontFamily: fontFamily,
+    readOnly: readOnly,
+    lineNumbers: true,
+    minimap: false,
+    wordWrap: true,
+    scrollBeyondLastLine: false,
+  );
+}
 
 class EditorPage extends ConsumerStatefulWidget {
   final String title;
@@ -52,8 +83,14 @@ class _EditorPageState extends ConsumerState<EditorPage> {
   late CodeFindController _findController;
   late TextEditingController _titleController;
   late FocusNode _focusNode;
+  late ValueNotifier<String> _contentNotifier;
   late bool readOnly = false;
   late final SelectionToolbarController _toolbarController;
+  monaco.MonacoController? _monacoController;
+
+  bool get _useMonaco => !system.isLinux;
+
+  String get _content => _contentNotifier.value;
 
   @override
   void initState() {
@@ -62,6 +99,8 @@ class _EditorPageState extends ConsumerState<EditorPage> {
     _toolbarController = ContextMenuControllerImpl(readOnly);
     _focusNode = FocusNode();
     _controller = CodeLineEditingController.fromText(widget.content);
+    _contentNotifier = ValueNotifier(widget.content ?? '');
+    _controller.addListener(_handleReEditorContentChanged);
     _findController = CodeFindController(_controller);
     _titleController = TextEditingController(text: widget.title);
     if (system.isDesktop) {
@@ -97,8 +136,7 @@ class _EditorPageState extends ConsumerState<EditorPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final content = widget.content;
       if (content != null && oldWidget.content != content) {
-        _controller.text = content;
-        _controller.clearHistory();
+        _setContent(content, clearReEditorHistory: true);
       }
     });
   }
@@ -107,14 +145,39 @@ class _EditorPageState extends ConsumerState<EditorPage> {
   void dispose() {
     _toolbarController.hide(context);
     _findController.dispose();
+    _contentNotifier.dispose();
+    _controller.removeListener(_handleReEditorContentChanged);
     _controller.dispose();
     _focusNode.dispose();
     super.dispose();
   }
 
+  void _handleReEditorContentChanged() {
+    if (_contentNotifier.value == _controller.text) {
+      return;
+    }
+    _contentNotifier.value = _controller.text;
+  }
+
+  void _setContent(String value, {bool clearReEditorHistory = false}) {
+    if (_contentNotifier.value != value) {
+      _contentNotifier.value = value;
+    }
+    if (_controller.text != value) {
+      _controller.text = value;
+    }
+    if (clearReEditorHistory) {
+      _controller.clearHistory();
+    }
+    final monacoController = _monacoController;
+    if (monacoController != null) {
+      unawaited(monacoController.setValue(value));
+    }
+  }
+
   Widget _wrapController(EditingValueChangeBuilder builder) {
     return ValueListenableBuilder(
-      valueListenable: _controller,
+      valueListenable: _contentNotifier,
       builder: (_, value, _) {
         return builder(value);
       },
@@ -131,7 +194,36 @@ class _EditorPageState extends ConsumerState<EditorPage> {
   }
 
   void _handleSearch() {
+    if (_useMonaco) {
+      final controller = _monacoController;
+      if (controller != null) {
+        unawaited(controller.find());
+      }
+      return;
+    }
     _findController.findMode();
+  }
+
+  void _handleUndo() {
+    if (_useMonaco) {
+      final controller = _monacoController;
+      if (controller != null) {
+        unawaited(controller.undo());
+      }
+      return;
+    }
+    _controller.undo();
+  }
+
+  void _handleRedo() {
+    if (_useMonaco) {
+      final controller = _monacoController;
+      if (controller != null) {
+        unawaited(controller.redo());
+      }
+      return;
+    }
+    _controller.redo();
   }
 
   Future<void> _handleImportFormFile() async {
@@ -140,7 +232,7 @@ class _EditorPageState extends ConsumerState<EditorPage> {
       return;
     }
     final res = utf8.decode(await file.readBytes());
-    _controller.text = res;
+    _setContent(res);
   }
 
   Future<void> _handleImportFormUrl() async {
@@ -166,7 +258,7 @@ class _EditorPageState extends ConsumerState<EditorPage> {
       return;
     }
     final res = await request.getTextResponseForUrl(url);
-    _controller.text = res.data ?? '';
+    _setContent(res.data ?? '');
   }
 
   @override
@@ -181,7 +273,7 @@ class _EditorPageState extends ConsumerState<EditorPage> {
         final res = await widget.onPop!(
           context,
           _titleController.text,
-          _controller.text,
+          _content,
         );
         if (res && context.mounted) {
           return true;
@@ -205,16 +297,16 @@ class _EditorPageState extends ConsumerState<EditorPage> {
           actions: genActions([
             if (!readOnly)
               _wrapController(
-                (value) => _wrapTitleController(
-                  (value) => IconButton(
+                (content) => _wrapTitleController(
+                  (_) => IconButton(
                     onPressed:
-                        _controller.text != widget.content ||
+                        content != widget.content ||
                             _titleController.text != widget.title
                         ? () {
                             widget.onSave!(
                               context,
                               _titleController.text,
-                              _controller.text,
+                              content,
                             );
                           }
                         : null,
@@ -243,12 +335,24 @@ class _EditorPageState extends ConsumerState<EditorPage> {
                     PopupMenuItemData(
                       icon: Icons.undo,
                       label: appLocalizations.undo,
-                      onPressed: _controller.canUndo ? _controller.undo : null,
+                      onPressed: _useMonaco
+                          ? _monacoController == null
+                                ? null
+                                : _handleUndo
+                          : _controller.canUndo
+                          ? _handleUndo
+                          : null,
                     ),
                     PopupMenuItemData(
                       icon: Icons.redo,
                       label: appLocalizations.redo,
-                      onPressed: _controller.canRedo ? _controller.redo : null,
+                      onPressed: _useMonaco
+                          ? _monacoController == null
+                                ? null
+                                : _handleRedo
+                          : _controller.canRedo
+                          ? _handleRedo
+                          : null,
                     ),
                     if (widget.supportRemoteDownload && !readOnly)
                       PopupMenuItemData(
@@ -273,63 +377,9 @@ class _EditorPageState extends ConsumerState<EditorPage> {
         ),
         body: Stack(
           children: [
-            CodeEditor(
-              readOnly: readOnly,
-              autofocus: false,
-              showCursorWhenReadOnly: false,
-              findController: _findController,
-              findBuilder: (context, controller, readOnly) => FindPanel(
-                controller: controller,
-                readOnly: readOnly,
-                isMobileView: isMobileView,
-              ),
-              padding: const EdgeInsets.only(right: 16),
-              autocompleteSymbols: true,
-              focusNode: _focusNode,
-              scrollbarBuilder: (context, child, details) {
-                return CommonScrollBar(
-                  controller: details.controller,
-                  child: child,
-                );
-              },
-              toolbarController: _toolbarController,
-              indicatorBuilder:
-                  (context, editingController, chunkController, notifier) {
-                    return Row(
-                      children: [
-                        DefaultCodeLineNumber(
-                          controller: editingController,
-                          notifier: notifier,
-                        ),
-                        DefaultCodeChunkIndicator(
-                          width: 20,
-                          controller: chunkController,
-                          notifier: notifier,
-                        ),
-                      ],
-                    );
-                  },
-              shortcutsActivatorsBuilder:
-                  const DefaultCodeShortcutsActivatorsBuilder(),
-              controller: _controller,
-              style: CodeEditorStyle(
-                fontSize: context.textTheme.bodyLarge?.fontSize?.ap,
-                fontFamily: FontFamily.jetBrainsMono.value,
-                codeTheme: CodeHighlightTheme(
-                  languages: {
-                    if (widget.languages.contains(Language.yaml))
-                      'yaml': CodeHighlightThemeMode(mode: langYaml),
-                    if (widget.languages.contains(Language.javaScript))
-                      'javascript': CodeHighlightThemeMode(
-                        mode: langJavascript,
-                      ),
-                    if (widget.languages.contains(Language.json))
-                      'json': CodeHighlightThemeMode(mode: langJson),
-                  },
-                  theme: atomOneLightTheme,
-                ),
-              ),
-            ),
+            _useMonaco
+                ? _buildMonacoEditor(context)
+                : _buildReEditor(context, isMobileView),
             FadeBox(
               child: widget.content == null
                   ? Container(
@@ -343,6 +393,90 @@ class _EditorPageState extends ConsumerState<EditorPage> {
                   : const SizedBox.shrink(),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMonacoEditor(BuildContext context) {
+    final fontSize = context.textTheme.bodyLarge?.fontSize?.ap ?? 14;
+    return monaco.MonacoEditor(
+      initialValue: widget.content ?? '',
+      options: editorMonacoOptions(
+        language: editorMonacoLanguageFor(widget.languages),
+        readOnly: readOnly,
+        fontSize: fontSize,
+        fontFamily: FontFamily.jetBrainsMono.value,
+      ),
+      backgroundColor: context.colorScheme.surface,
+      loadingBuilder: (_) => const Center(child: CommonCircleLoading()),
+      onReady: (controller) {
+        _monacoController = controller;
+        if (_content != widget.content) {
+          unawaited(controller.setValue(_content));
+        }
+        if (mounted) {
+          setState(() {});
+        }
+      },
+      onContentChanged: (value) {
+        if (_contentNotifier.value == value) {
+          return;
+        }
+        _contentNotifier.value = value;
+      },
+    );
+  }
+
+  Widget _buildReEditor(BuildContext context, bool isMobileView) {
+    return CodeEditor(
+      readOnly: readOnly,
+      autofocus: false,
+      showCursorWhenReadOnly: false,
+      findController: _findController,
+      findBuilder: (context, controller, readOnly) => FindPanel(
+        controller: controller,
+        readOnly: readOnly,
+        isMobileView: isMobileView,
+      ),
+      padding: const EdgeInsets.only(right: 16),
+      autocompleteSymbols: true,
+      focusNode: _focusNode,
+      scrollbarBuilder: (context, child, details) {
+        return CommonScrollBar(controller: details.controller, child: child);
+      },
+      toolbarController: _toolbarController,
+      indicatorBuilder:
+          (context, editingController, chunkController, notifier) {
+            return Row(
+              children: [
+                DefaultCodeLineNumber(
+                  controller: editingController,
+                  notifier: notifier,
+                ),
+                DefaultCodeChunkIndicator(
+                  width: 20,
+                  controller: chunkController,
+                  notifier: notifier,
+                ),
+              ],
+            );
+          },
+      shortcutsActivatorsBuilder: const DefaultCodeShortcutsActivatorsBuilder(),
+      controller: _controller,
+      style: CodeEditorStyle(
+        fontSize: context.textTheme.bodyLarge?.fontSize?.ap,
+        fontFamily: FontFamily.jetBrainsMono.value,
+        codeTheme: CodeHighlightTheme(
+          languages: {
+            if (widget.languages.contains(Language.yaml))
+              'yaml': CodeHighlightThemeMode(mode: langYaml),
+            if (widget.languages.contains(Language.javaScript))
+              'javascript': CodeHighlightThemeMode(mode: langJavascript),
+            if (widget.languages.contains(Language.json))
+              'json': CodeHighlightThemeMode(mode: langJson),
+          },
+          theme: atomOneLightTheme,
         ),
       ),
     );
