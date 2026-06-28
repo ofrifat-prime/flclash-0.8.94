@@ -88,6 +88,10 @@ class _VpnContainerState extends ConsumerState<VpnManager> {
         allowBypass: state.vpnProps.allowBypass,
         initParamsJson: initParamsJson,
         setupParamsJson: setupParamsJson,
+        // Let the VPN-process core dial the main app's CoreService socket so the
+        // UI is linked to the core that actually serves traffic (live status,
+        // traffic stats, connections page, live mode/node switching).
+        coreSocketPath: unixSocketPath,
       );
       commonPrint.log('[OHOS-VPN] startVpn returned started=$started');
       if (started == false) {

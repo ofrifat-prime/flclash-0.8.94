@@ -455,6 +455,7 @@ class GlobalState {
         'version': container.read(versionProvider),
       }),
       setupParamsJson: json.encode(setupParams.toJson()),
+      coreSocketPath: unixSocketPath,
     );
     commonPrint.log('[OHOS-DEBUG-VPN] direct start result=$started');
     return true;

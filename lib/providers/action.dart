@@ -474,7 +474,9 @@ class SetupAction extends _$SetupAction {
             ref.read(runTimeProvider.notifier).value = null;
             return;
           }
-          await _handleStart(syncCoreState: false);
+          // OHOS VPN: the VPN-process core now dials the main app's CoreService
+          // socket, so subscribe to it for live status/traffic/connections.
+          await _handleStart();
         } else {
           await _handleStart();
           applyProfileDebounce(force: true, silence: true);
@@ -489,7 +491,9 @@ class SetupAction extends _$SetupAction {
               ref.read(runTimeProvider.notifier).value = null;
               return;
             }
-            await _handleStart(syncCoreState: false);
+            // OHOS VPN: the VPN-process core now dials the main app's CoreService
+          // socket, so subscribe to it for live status/traffic/connections.
+          await _handleStart();
           } else {
             await applyProfile(
               force: true,

@@ -16,6 +16,7 @@ interface NativeBridge {
   startTun(fd: number, stack: string, address: string, dns: string): boolean;
   stopTun(): boolean;
   lastError(): string;
+  startEmbeddedCore(socketPath: string, logDirPath: string): number;
 }
 
 const nativeBridge = loadNativeModule('libentry.so') as NativeBridge;
@@ -105,6 +106,7 @@ export default class FlClashVpnAbility extends VpnExtensionAbility {
     const allowBypass = getBooleanParam(want, 'allowBypass', true);
     const initParamsJson = getStringParam(want, 'initParamsJson', '');
     const setupParamsJson = getStringParam(want, 'setupParamsJson', '');
+    const coreSocketPath = getStringParam(want, 'coreSocketPath', '');
 
     const addresses: Array<connection.LinkAddress> = [
       {
@@ -166,6 +168,25 @@ export default class FlClashVpnAbility extends VpnExtensionAbility {
       );
       if (!started) {
         throw new Error(`startTun failed: ${nativeBridge.lastError()}`);
+      }
+      // Link the main app UI to THIS (traffic-serving) core: the embedded core
+      // dials the main app's CoreService socket in-process, so the same core
+      // that runs the tun also answers UI queries and pushes live events.
+      // Non-fatal: the VPN keeps working even if the link cannot be set up.
+      if (coreSocketPath.length > 0) {
+        try {
+          const linked = nativeBridge.startEmbeddedCore(
+            coreSocketPath,
+            this.context.filesDir,
+          );
+          console.info(
+            `[FlClashVpnAbility] core UI link socket=${coreSocketPath} result=${linked}`,
+          );
+        } catch (error) {
+          console.warn(
+            `[FlClashVpnAbility] core UI link failed: ${JSON.stringify(error)}`,
+          );
+        }
       }
       writeVpnStatus(this.context.filesDir, 'started');
       console.info(

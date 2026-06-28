@@ -474,12 +474,15 @@ export default class AppPlugin implements FlutterPlugin, MethodCallHandler {
           (args?.get('initParamsJson') as string | undefined) ?? '';
         const setupParamsJson =
           (args?.get('setupParamsJson') as string | undefined) ?? '';
+        const coreSocketPath =
+          (args?.get('coreSocketPath') as string | undefined) ?? '';
         void this.startVpn(
           stack,
           ipv6,
           allowBypass,
           initParamsJson,
           setupParamsJson,
+          coreSocketPath,
           result,
         );
         return;
@@ -707,6 +710,7 @@ export default class AppPlugin implements FlutterPlugin, MethodCallHandler {
     allowBypass: boolean,
     initParamsJson: string,
     setupParamsJson: string,
+    coreSocketPath: string,
     result: MethodResult,
   ): Promise<void> {
     if (this.isVpnRunning) {
@@ -730,6 +734,7 @@ export default class AppPlugin implements FlutterPlugin, MethodCallHandler {
           allowBypass,
           initParamsJson,
           setupParamsJson,
+          coreSocketPath,
         },
       };
       console.info(

@@ -97,6 +97,7 @@ class App {
     required bool allowBypass,
     required String initParamsJson,
     required String setupParamsJson,
+    required String coreSocketPath,
   }) {
     return methodChannel.invokeMethod<bool>('startVpn', {
       'stack': stack,
@@ -104,6 +105,7 @@ class App {
       'allowBypass': allowBypass,
       'initParamsJson': initParamsJson,
       'setupParamsJson': setupParamsJson,
+      'coreSocketPath': coreSocketPath,
     });
   }
 

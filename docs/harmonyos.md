@@ -229,6 +229,19 @@ The OHOS sniffer force-enable and the `core/conn_dump_ohos.go` diagnostic added 
 removed afterward (`core/sniffer_ohos.go`, `core/sniffer_default.go`, and the `ensureOhosSniffer` call in
 `core/common.go` are gone); the gVisor TCP fix + the fake-ip/DNS changes below are what carry the result.
 
+### RESOLVED (June 28, 2026): live UI ↔ running-core link (status/stats/connections/mode switch)
+
+After browsing worked, real-device testing showed the UI had no live channel to the core serving traffic
+(dashboard stuck at "连接中…", 流量统计 0, 连接 page "暂无连接", live outbound-mode/node switches no-op). The
+Go core is the socket *client* (`startServer`→`dial`) and Dart `CoreService` is the *server*; when the VPN
+runs in `com.follow.clash:vpn`, nothing dialed the main app's socket. Fix: thread the main app's
+`unixSocketPath` through `startVpn` → `FlClashVpnAbility`, which after `startTun` calls
+`nativeBridge.startEmbeddedCore(coreSocketPath, filesDir)` (dlopens the same `libclash.so`, runs
+`startServerProcessDetached`→`dial`), and flip the OHOS-VPN `_handleStart(syncCoreState:false)` to
+`_handleStart()`. Now the in-process VPN core connects back to the UI: live stats, connections, and live
+mode/node switching all work. Full report + one-command regression suite:
+`docs/ohos-real-device-test-report.md` / `scripts/ohos/verify_all.sh` (22/22 on Mate 80 Pro).
+
 ### RESOLVED (June 27, 2026): YouTube blocked by `youtube.com` in the OHOS fake-ip-filter
 
 Root cause for browsers not loading YouTube on Mate 80 Pro was found and fixed:
