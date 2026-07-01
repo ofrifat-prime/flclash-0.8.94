@@ -61,7 +61,7 @@ test('FilePickerDelegate ignores stale async picker callbacks after lifecycle ca
   );
   assert.match(
     filePickerDelegateSource,
-    /const pendingResult = result;[\s\S]*documentPicker\.select\(options\)[\s\S]*\.then\(\(uris: Array<string>\) => \{[\s\S]*setTimeout\(\(\) => \{[\s\S]*if \(!this\.isPendingResultActive\(pendingResult\)\) \{[\s\S]*return;[\s\S]*\}[\s\S]*void this\.handlePickedUris\(pendingResult, uris\);/m,
+    /const pendingResult = result;[\s\S]*documentPicker\.select\(options\)[\s\S]*\.then\(\(uris: Array<string>\) => \{[\s\S]*setTimeout\(\(\) => \{[\s\S]*if \((?:pendingResult === null \|\| )?!this\.isPendingResultActive\(pendingResult\)\) \{[\s\S]*return;[\s\S]*\}[\s\S]*void this\.handlePickedUris\(pendingResult, uris\);/m,
   );
   assert.match(
     filePickerDelegateSource,

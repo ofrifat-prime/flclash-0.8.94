@@ -143,7 +143,7 @@ test('OHOS AppPlugin queues multiple pending debug VPN start requests instead of
   );
   assert.ok(
     appPluginSource.includes(
-      `error: (code, message, details) => {
+      `error: (code: string, message: string, details: Any) => {
         if (AppPlugin.pendingDebugVpnStartDeliveryId !== deliveryId) {
           return;
         }

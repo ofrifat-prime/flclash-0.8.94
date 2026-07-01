@@ -168,13 +168,18 @@ test('GeneratedPluginRegistrant stays Flutter-generated while hvigor wrapper sup
   );
 });
 
-test('OHOS generated registrant keeps required method-channel plugins registered via package imports', () => {
-  assert.match(generatedPluginRegistrant, /import ProxyPlugin from 'proxy';/);
-  assert.match(generatedPluginRegistrant, /import WifiSsidPlugin from 'wifi_ssid';/);
-  assert.match(generatedPluginRegistrant, /import WindowExtPlugin from 'window_ext';/);
-  assert.match(generatedPluginRegistrant, /flutterEngine\.getPlugins\(\)\?\.add\(new ProxyPlugin\(\)\);|plugins\.add\(new ProxyPlugin\(\)\);/);
-  assert.match(generatedPluginRegistrant, /flutterEngine\.getPlugins\(\)\?\.add\(new WifiSsidPlugin\(\)\);|plugins\.add\(new WifiSsidPlugin\(\)\);/);
-  assert.match(generatedPluginRegistrant, /flutterEngine\.getPlugins\(\)\?\.add\(new WindowExtPlugin\(\)\);|plugins\.add\(new WindowExtPlugin\(\)\);/);
+test('OHOS generated registrant excludes local har-only plugins that break the hvigor build', () => {
+  // proxy/wifi_ssid/window_ext have no buildable OHOS module (their source dirs lack a
+  // src/main/module.json and are not declared in ohos/build-profile.json5). Registering them
+  // here makes flutter wire them as local source modules and assembleHap fails with
+  // "Failed to resolve OhmUrl". The hvigor wrapper deliberately keeps them out; AppPlugin and
+  // FilePickerPlugin are registered via CustomPluginRegistrant instead.
+  assert.doesNotMatch(generatedPluginRegistrant, /import ProxyPlugin from 'proxy';/);
+  assert.doesNotMatch(generatedPluginRegistrant, /import WifiSsidPlugin from 'wifi_ssid';/);
+  assert.doesNotMatch(generatedPluginRegistrant, /import WindowExtPlugin from 'window_ext';/);
+  assert.doesNotMatch(generatedPluginRegistrant, /new ProxyPlugin\(\)/);
+  assert.doesNotMatch(generatedPluginRegistrant, /new WifiSsidPlugin\(\)/);
+  assert.doesNotMatch(generatedPluginRegistrant, /new WindowExtPlugin\(\)/);
   assert.doesNotMatch(generatedPluginRegistrant, /AppPlugin/);
   assert.doesNotMatch(generatedPluginRegistrant, /FilePickerPlugin/);
 });
@@ -214,17 +219,11 @@ test('EntryAbility registers generated and custom plugin registrants separately'
   );
 });
 
-test('OHOS plugin pubspec metadata declares all custom OHOS plugins', () => {
-  assert.match(
-    proxyPubspec,
-    /platforms:\n\s+windows:\n\s+pluginClass: ProxyPluginCApi\n\s+ohos:\n\s+pluginClass: ProxyPlugin/,
-  );
-  assert.match(
-    wifiSsidPubspec,
-    /windows:\n\s+pluginClass: WifiSsidPluginCApi\n\s+linux:\n\s+pluginClass: WifiSsidPlugin\n\s+ohos:\n\s+pluginClass: WifiSsidPlugin/,
-  );
-  assert.match(
-    windowExtPubspec,
-    /macos:\n\s+pluginClass: WindowExtPlugin\n\s+ohos:\n\s+pluginClass: WindowExtPlugin/,
-  );
+test('OHOS plugin pubspecs do not declare ohos.pluginClass (keeps them har-only, avoids hvigor break)', () => {
+  // Declaring an `ohos:` platform with pluginClass makes the flutter tool regenerate
+  // GeneratedPluginRegistrant with source-dir imports for these plugins, which hvigor cannot
+  // resolve/build. They must stay consumed as prebuilt HARs only.
+  assert.doesNotMatch(proxyPubspec, /ohos:\n\s+pluginClass: ProxyPlugin/);
+  assert.doesNotMatch(wifiSsidPubspec, /ohos:\n\s+pluginClass: WifiSsidPlugin/);
+  assert.doesNotMatch(windowExtPubspec, /ohos:\n\s+pluginClass: WindowExtPlugin/);
 });

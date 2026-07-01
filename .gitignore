@@ -114,3 +114,4 @@ devtools_options.yaml
 # FVM Version Cache
 .fvm/
 .fvmrc
+test/provider.txt
