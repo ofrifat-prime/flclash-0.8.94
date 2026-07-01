@@ -1106,6 +1106,20 @@ export default class AppPlugin implements FlutterPlugin, MethodCallHandler {
         stopErrorMessage,
         status,
       });
+      // A status that is still 'started' after stopVpnExtensionAbility + the
+      // wait timeout means the VPN extension was killed uncleanly (e.g. the
+      // process died / was force-stopped) and can no longer transition its
+      // status file to 'stopped' — not that it is actively refusing to stop.
+      // FlClashVpnAbility is a system-managed singleton VPN, so reconcile the
+      // stale state to stopped here; otherwise the leftover 'started' blocks
+      // every subsequent startVpn (isVpnStatusRunning short-circuits) and
+      // stopVpn (waitForVpnStoppedStatus never sees 'stopped').
+      if (!resolution.stopped && status === 'started') {
+        this.resetVpnStatus(statusPath);
+        this.isVpnRunning = false;
+        result.success(true);
+        return;
+      }
       if (!resolution.stopped) {
         throw new Error(resolution.errorMessage);
       }
