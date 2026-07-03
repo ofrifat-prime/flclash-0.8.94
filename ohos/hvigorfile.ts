@@ -1,4 +1,5 @@
 import path from 'path';
+import { syncHostResourcesPlugin } from './sync_host_resources_plugin';
 
 const {
   appTasks,
@@ -7,6 +8,9 @@ const {
 const { flutterHvigorPlugin } = loadFlutterHvigorPlugin();
 
 export default {
-    system: appTasks,  /* Built-in plugin of Hvigor. It cannot be modified. */
-    plugins:[flutterHvigorPlugin(path.dirname(__dirname))]         /* Custom plugin to extend the functionality of Hvigor. */
-}
+  system: appTasks,  /* Built-in plugin of Hvigor. It cannot be modified. */
+  plugins: [
+    syncHostResourcesPlugin(),
+    flutterHvigorPlugin(path.dirname(__dirname)),
+  ],         /* Custom plugin to extend the functionality of Hvigor. */
+};
