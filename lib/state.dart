@@ -24,13 +24,22 @@ import 'plugins/app.dart';
 import 'providers/providers.dart';
 
 @visibleForTesting
-Future<void> runUiCoreStartupSequence(ProviderContainer container) async {
+Future<void> connectUiCoreTransport(ProviderContainer container) async {
   await container.read(coreActionProvider.notifier).connectCore();
+}
+
+@visibleForTesting
+Future<void> Function(ProviderContainer container)? runStartupInitStatus =
+    (container) => container.read(setupActionProvider.notifier).initStatus();
+
+@visibleForTesting
+Future<void> runUiCoreStartupSequence(ProviderContainer container) async {
+  await connectUiCoreTransport(container);
   if (container.read(coreStatusProvider) != CoreStatus.connected) {
     return;
   }
   await container.read(coreActionProvider.notifier).initCore();
-  await container.read(setupActionProvider.notifier).initStatus();
+  await runStartupInitStatus?.call(container);
 }
 
 @visibleForTesting
@@ -113,23 +122,7 @@ bool shouldSkipOhosUiCoreStartup(ProviderContainer container) {
 }
 
 @visibleForTesting
-Future<bool?> Function()? getOhosVpnRunning = () async {
-  return await app?.getVpnRunning();
-};
-
-@visibleForTesting
-CoreStatus resolveSkippedOhosUiCoreStartupStatus({
-  required CoreStatus currentStatus,
-  required bool vpnRunning,
-}) {
-  if (currentStatus != CoreStatus.connecting) {
-    return currentStatus;
-  }
-  return vpnRunning ? CoreStatus.connected : CoreStatus.disconnected;
-}
-
-@visibleForTesting
-Future<void> syncSkippedOhosUiCoreStartupStatus(
+Future<void> runSkippedOhosUiCoreStartupSequence(
   ProviderContainer container, {
   bool? isOhosOverride,
 }) async {
@@ -138,25 +131,8 @@ Future<void> syncSkippedOhosUiCoreStartupStatus(
   if (!shouldUseOhosVpnConfigOnly(isOhos: isOhos, vpnEnabled: vpnEnabled)) {
     return;
   }
-  final currentStatus = container.read(coreStatusProvider);
-  if (currentStatus != CoreStatus.connecting) {
-    return;
-  }
-  bool vpnRunning;
-  try {
-    vpnRunning = await getOhosVpnRunning?.call() ?? false;
-  } catch (error, stackTrace) {
-    commonPrint.log(
-      '[OHOS-VPN] startup status sync failed: $error stack: $stackTrace',
-      logLevel: LogLevel.warning,
-    );
-    vpnRunning = false;
-  }
-  container.read(coreStatusProvider.notifier).value =
-      resolveSkippedOhosUiCoreStartupStatus(
-        currentStatus: currentStatus,
-        vpnRunning: vpnRunning,
-      );
+  await connectUiCoreTransport(container);
+  await runStartupInitStatus?.call(container);
 }
 
 class GlobalState {
@@ -508,9 +484,10 @@ class GlobalState {
     if (!handledPendingDebugVpn && !skipOhosUiCoreStartup) {
       await runUiCoreStartupSequence(container);
     } else {
-      await container.read(setupActionProvider.notifier).initStatus();
       if (!handledPendingDebugVpn && skipOhosUiCoreStartup) {
-        await syncSkippedOhosUiCoreStartupStatus(container);
+        await runSkippedOhosUiCoreStartupSequence(container);
+      } else {
+        await runStartupInitStatus?.call(container);
       }
     }
     _ohosPendingDebugVpnStartReady = true;

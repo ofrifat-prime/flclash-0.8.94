@@ -139,12 +139,12 @@ void main() {
     });
 
     test(
-      'sync skipped ohos ui core startup status downgrades stale connecting state when native vpn is not running',
+      'skipped ohos ui core startup sequence still attempts transport connection',
       () async {
         final container = ProviderContainer(
           overrides: [
             coreStatusProvider.overrideWithBuild(
-              (_, _) => CoreStatus.connecting,
+              (_, _) => CoreStatus.disconnected,
             ),
             vpnSettingProvider.overrideWithBuild(
               (_, _) => const VpnProps(enable: true),
@@ -153,29 +153,38 @@ void main() {
         );
         addTearDown(container.dispose);
 
-        final previousGetOhosVpnRunning = getOhosVpnRunning;
+        final notifier = container.read(coreActionProvider.notifier);
+        final previousRunStartupInitStatus = runStartupInitStatus;
         addTearDown(() {
-          getOhosVpnRunning = previousGetOhosVpnRunning;
+          runStartupInitStatus = previousRunStartupInitStatus;
         });
-        getOhosVpnRunning = () async => false;
+        runStartupInitStatus = (_) async {};
+        var preloadCalls = 0;
+        notifier.preloadCore = () async {
+          preloadCalls += 1;
+          return '';
+        };
+        notifier.showCoreConnectFailure = (_) {};
 
-        await syncSkippedOhosUiCoreStartupStatus(
+        await runSkippedOhosUiCoreStartupSequence(
           container,
           isOhosOverride: true,
         );
 
-        expect(container.read(coreStatusProvider), CoreStatus.disconnected);
+        expect(preloadCalls, 1);
+        expect(container.read(coreStatusProvider), CoreStatus.connected);
       },
     );
 
     test(
-      'sync skipped ohos ui core startup status upgrades stale connecting state when native vpn is running',
+      'skipped ohos ui core startup sequence keeps runtime stopped after transport connects',
       () async {
         final container = ProviderContainer(
           overrides: [
             coreStatusProvider.overrideWithBuild(
-              (_, _) => CoreStatus.connecting,
+              (_, _) => CoreStatus.disconnected,
             ),
+            runTimeProvider.overrideWithBuild((_, _) => null),
             vpnSettingProvider.overrideWithBuild(
               (_, _) => const VpnProps(enable: true),
             ),
@@ -183,18 +192,23 @@ void main() {
         );
         addTearDown(container.dispose);
 
-        final previousGetOhosVpnRunning = getOhosVpnRunning;
+        final notifier = container.read(coreActionProvider.notifier);
+        final previousRunStartupInitStatus = runStartupInitStatus;
         addTearDown(() {
-          getOhosVpnRunning = previousGetOhosVpnRunning;
+          runStartupInitStatus = previousRunStartupInitStatus;
         });
-        getOhosVpnRunning = () async => true;
+        runStartupInitStatus = (_) async {};
+        notifier.preloadCore = () async => '';
+        notifier.showCoreConnectFailure = (_) {};
 
-        await syncSkippedOhosUiCoreStartupStatus(
+        await runSkippedOhosUiCoreStartupSequence(
           container,
           isOhosOverride: true,
         );
 
         expect(container.read(coreStatusProvider), CoreStatus.connected);
+        expect(container.read(isStartProvider), isFalse);
+        expect(container.read(runTimeProvider), isNull);
       },
     );
 
