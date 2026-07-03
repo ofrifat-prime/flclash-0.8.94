@@ -138,6 +138,66 @@ void main() {
       );
     });
 
+    test(
+      'sync skipped ohos ui core startup status downgrades stale connecting state when native vpn is not running',
+      () async {
+        final container = ProviderContainer(
+          overrides: [
+            coreStatusProvider.overrideWithBuild(
+              (_, _) => CoreStatus.connecting,
+            ),
+            vpnSettingProvider.overrideWithBuild(
+              (_, _) => const VpnProps(enable: true),
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        final previousGetOhosVpnRunning = getOhosVpnRunning;
+        addTearDown(() {
+          getOhosVpnRunning = previousGetOhosVpnRunning;
+        });
+        getOhosVpnRunning = () async => false;
+
+        await syncSkippedOhosUiCoreStartupStatus(
+          container,
+          isOhosOverride: true,
+        );
+
+        expect(container.read(coreStatusProvider), CoreStatus.disconnected);
+      },
+    );
+
+    test(
+      'sync skipped ohos ui core startup status upgrades stale connecting state when native vpn is running',
+      () async {
+        final container = ProviderContainer(
+          overrides: [
+            coreStatusProvider.overrideWithBuild(
+              (_, _) => CoreStatus.connecting,
+            ),
+            vpnSettingProvider.overrideWithBuild(
+              (_, _) => const VpnProps(enable: true),
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        final previousGetOhosVpnRunning = getOhosVpnRunning;
+        addTearDown(() {
+          getOhosVpnRunning = previousGetOhosVpnRunning;
+        });
+        getOhosVpnRunning = () async => true;
+
+        await syncSkippedOhosUiCoreStartupStatus(
+          container,
+          isOhosOverride: true,
+        );
+
+        expect(container.read(coreStatusProvider), CoreStatus.connected);
+      },
+    );
+
     test('pending debug vpn start forces local vpn enable before syncing startup state', () {
       final container = ProviderContainer(
         overrides: [
