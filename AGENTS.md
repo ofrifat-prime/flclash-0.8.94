@@ -10,6 +10,9 @@ Read these files before making changes:
 - [.agents/project.md](.agents/project.md): project overview, versions, and build dependencies.
 - [.agents/commands.md](.agents/commands.md): build, development, code generation, and test commands.
 - [.agents/rules.md](.agents/rules.md): lint, testing, generated-code, and workflow rules.
+
+Read these only when the task touches their area:
+
 - [.agents/architecture.md](.agents/architecture.md): core integration, providers, database, managers, build system, and
   local plugins.
 - [.agents/agent-config.md](.agents/agent-config.md): how to choose between `AGENTS.md`, `.agents`, skills, Codex config,

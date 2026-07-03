@@ -20,11 +20,20 @@ dart setup.dart android
 Build only the Go core and skip Flutter packaging:
 
 ```bash
-bash plugins/setup/buildkit/run_build_tool.sh macos
-bash plugins/setup/buildkit/run_build_tool.sh linux
-bash plugins/setup/buildkit/run_build_tool.sh windows
-bash plugins/setup/buildkit/run_build_tool.sh android
+make core-macos
+make core-linux
+make core-windows
+make core-android
 ```
+
+Pass `ARCH` or `TARGET_PLATFORM` through `make` when needed, for example:
+
+```bash
+make core-macos ARCH=arm64
+make core-android TARGET_PLATFORM=android-arm64
+```
+
+The Makefile wraps `plugins/setup/buildkit/run_build_tool.sh`; prefer the `make` entry points unless debugging the build tool itself.
 
 ## Flutter Development
 
