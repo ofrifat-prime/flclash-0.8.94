@@ -18,6 +18,7 @@ This repository now contains an `ohos/` host project and the minimum local plugi
 - The patched toolchain builds `libclash.so` with `R_AARCH64_TLSDESC` instead of the old `initial-exec` TLS model
 - Emulator validation now confirms the package no longer exits immediately after launch, and the OHOS core can execute `initClash`, `setupConfig`, `getProxies`, and `getExternalProviders`
 - Emulator validation also confirms the previous `flutter/navigation` `DartMessenger` runtime exception is no longer emitted after launch
+- OHOS host icons are generated from the shared `assets/images/icon.png` source during hvigor builds; do not track or hand-edit `AppScope/resources/base/media/app_icon.png` or `entry/src/main/resources/base/media/icon.png`
 
 ## Mate 80 Pro handoff status
 
