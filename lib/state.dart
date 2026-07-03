@@ -33,6 +33,12 @@ Future<void> Function(ProviderContainer container)? runStartupInitStatus =
     (container) => container.read(setupActionProvider.notifier).initStatus();
 
 @visibleForTesting
+Future<bool> Function(ProviderContainer container)? runOhosUiCorePostVpnStopSync =
+    (container) => container
+        .read(setupActionProvider.notifier)
+        .applyProfile(force: true, silence: true);
+
+@visibleForTesting
 Future<void> runUiCoreStartupSequence(ProviderContainer container) async {
   await connectUiCoreTransport(container);
   if (container.read(coreStatusProvider) != CoreStatus.connected) {
@@ -137,6 +143,15 @@ Future<void> runSkippedOhosUiCoreStartupSequence(
   }
   await container.read(coreActionProvider.notifier).initCore();
   await runStartupInitStatus?.call(container);
+}
+
+Future<void> reconnectOhosUiCoreAfterVpnStop(ProviderContainer container) async {
+  await connectUiCoreTransport(container);
+  if (container.read(coreStatusProvider) != CoreStatus.connected) {
+    return;
+  }
+  await container.read(coreActionProvider.notifier).initCore();
+  await runOhosUiCorePostVpnStopSync?.call(container);
 }
 
 class GlobalState {

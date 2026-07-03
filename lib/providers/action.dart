@@ -641,7 +641,7 @@ class SetupAction extends _$SetupAction {
       }
       await handleStop(syncCoreState: !useOhosVpnConfigOnly);
       if (useOhosVpnConfigOnly) {
-        ref.read(coreStatusProvider.notifier).value = CoreStatus.disconnected;
+        clearOhosVpnStopRollbackState();
       } else {
         clearOhosVpnStopRollbackState();
         coreController.resetTraffic();

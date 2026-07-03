@@ -267,6 +267,46 @@ void main() {
       },
     );
 
+    test('ohos vpn stop reconnects the app ui core transport', () async {
+      final container = ProviderContainer(
+        overrides: [
+          coreStatusProvider.overrideWithBuild(
+            (_, _) => CoreStatus.disconnected,
+          ),
+          vpnSettingProvider.overrideWithBuild(
+            (_, _) => const VpnProps(enable: true),
+          ),
+          versionProvider.overrideWithBuild((_, _) => 1),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final notifier = container.read(coreActionProvider.notifier);
+      final previousPostStopSync = runOhosUiCorePostVpnStopSync;
+      addTearDown(() {
+        runOhosUiCorePostVpnStopSync = previousPostStopSync;
+      });
+      notifier.preloadCore = () async => '';
+      notifier.showCoreConnectFailure = (_) {};
+      var initCalls = 0;
+      notifier.isCoreInit = () async => false;
+      notifier.runCoreInit = (_) async {
+        initCalls += 1;
+        return true;
+      };
+      var profileSyncCalls = 0;
+      runOhosUiCorePostVpnStopSync = (_) async {
+        profileSyncCalls += 1;
+        return true;
+      };
+
+      await reconnectOhosUiCoreAfterVpnStop(container);
+
+      expect(container.read(coreStatusProvider), CoreStatus.connected);
+      expect(initCalls, 1);
+      expect(profileSyncCalls, 1);
+    });
+
     test('pending debug vpn start forces local vpn enable before syncing startup state', () {
       final container = ProviderContainer(
         overrides: [
@@ -578,6 +618,28 @@ void main() {
 
       expect(applyProfileCalls, 1);
       expect(prepareProfileCalls, 0);
+    });
+
+    test('ohos stopping vpn keeps ui core connected', () async {
+      final container = ProviderContainer(
+        overrides: [
+          coreStatusProvider.overrideWithBuild((_, _) => CoreStatus.connected),
+          runTimeProvider.overrideWithBuild((_, _) => 5000),
+          vpnSettingProvider.overrideWithBuild(
+            (_, _) => const VpnProps(enable: true),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final notifier = container.read(setupActionProvider.notifier);
+      notifier.isOhosPlatform = () => true;
+
+      await notifier.updateStatus(false);
+
+      expect(container.read(coreStatusProvider), CoreStatus.connected);
+      expect(container.read(isStartProvider), isFalse);
+      expect(container.read(runTimeProvider), isNull);
     });
 
     test('restore failed OHOS VPN stop recovers local running state snapshot', () async {

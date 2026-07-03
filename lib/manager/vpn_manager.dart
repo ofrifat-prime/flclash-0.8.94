@@ -103,6 +103,7 @@ class _VpnContainerState extends ConsumerState<VpnManager> {
         return;
       }
       ref.read(setupActionProvider.notifier).clearOhosVpnStopRollbackState();
+      await reconnectOhosUiCoreAfterVpnStop(globalState.container);
       return;
     }
     try {
