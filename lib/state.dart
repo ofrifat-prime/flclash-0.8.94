@@ -132,6 +132,10 @@ Future<void> runSkippedOhosUiCoreStartupSequence(
     return;
   }
   await connectUiCoreTransport(container);
+  if (container.read(coreStatusProvider) != CoreStatus.connected) {
+    return;
+  }
+  await container.read(coreActionProvider.notifier).initCore();
   await runStartupInitStatus?.call(container);
 }
 

@@ -149,6 +149,7 @@ void main() {
             vpnSettingProvider.overrideWithBuild(
               (_, _) => const VpnProps(enable: true),
             ),
+            versionProvider.overrideWithBuild((_, _) => 1),
           ],
         );
         addTearDown(container.dispose);
@@ -165,6 +166,8 @@ void main() {
           return '';
         };
         notifier.showCoreConnectFailure = (_) {};
+        notifier.isCoreInit = () async => false;
+        notifier.runCoreInit = (_) async => true;
 
         await runSkippedOhosUiCoreStartupSequence(
           container,
@@ -188,6 +191,7 @@ void main() {
             vpnSettingProvider.overrideWithBuild(
               (_, _) => const VpnProps(enable: true),
             ),
+            versionProvider.overrideWithBuild((_, _) => 1),
           ],
         );
         addTearDown(container.dispose);
@@ -200,6 +204,8 @@ void main() {
         runStartupInitStatus = (_) async {};
         notifier.preloadCore = () async => '';
         notifier.showCoreConnectFailure = (_) {};
+        notifier.isCoreInit = () async => false;
+        notifier.runCoreInit = (_) async => true;
 
         await runSkippedOhosUiCoreStartupSequence(
           container,
@@ -209,6 +215,55 @@ void main() {
         expect(container.read(coreStatusProvider), CoreStatus.connected);
         expect(container.read(isStartProvider), isFalse);
         expect(container.read(runTimeProvider), isNull);
+      },
+    );
+
+    test(
+      'skipped ohos ui core startup sequence still initializes core after transport connects',
+      () async {
+        final container = ProviderContainer(
+          overrides: [
+            coreStatusProvider.overrideWithBuild(
+              (_, _) => CoreStatus.disconnected,
+            ),
+            vpnSettingProvider.overrideWithBuild(
+              (_, _) => const VpnProps(enable: true),
+            ),
+            versionProvider.overrideWithBuild((_, _) => 1),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        final notifier = container.read(coreActionProvider.notifier);
+        final previousRunStartupInitStatus = runStartupInitStatus;
+        addTearDown(() {
+          runStartupInitStatus = previousRunStartupInitStatus;
+        });
+        runStartupInitStatus = (_) async {};
+        notifier.preloadCore = () async => '';
+        notifier.showCoreConnectFailure = (_) {};
+        var isCoreInitChecks = 0;
+        var initCalls = 0;
+        var initVersion = 0;
+        notifier.isCoreInit = () async {
+          isCoreInitChecks += 1;
+          return false;
+        };
+        notifier.runCoreInit = (version) async {
+          initCalls += 1;
+          initVersion = version;
+          return true;
+        };
+
+        await runSkippedOhosUiCoreStartupSequence(
+          container,
+          isOhosOverride: true,
+        );
+
+        expect(container.read(coreStatusProvider), CoreStatus.connected);
+        expect(isCoreInitChecks, 1);
+        expect(initCalls, 1);
+        expect(initVersion, 1);
       },
     );
 
