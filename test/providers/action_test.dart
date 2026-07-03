@@ -549,6 +549,37 @@ void main() {
       expect(globalState.needInitStatus, isTrue);
     });
 
+    test('ohos idle startup applies profile to ui core instead of config-only prep', () async {
+      final container = ProviderContainer(
+        overrides: [
+          currentProfileIdProvider.overrideWithBuild((_, _) => null),
+          profilesProvider.overrideWith(() => _TestProfiles(const [])),
+          vpnSettingProvider.overrideWithBuild(
+            (_, _) => const VpnProps(enable: true),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final notifier = container.read(setupActionProvider.notifier);
+      var applyProfileCalls = 0;
+      var prepareProfileCalls = 0;
+      notifier.isOhosPlatform = () => true;
+      notifier.applyProfileForInitIdle = () async {
+        applyProfileCalls += 1;
+        return true;
+      };
+      notifier.prepareProfileConfigOnlyForInitIdle = () async {
+        prepareProfileCalls += 1;
+        return true;
+      };
+
+      await notifier.initStatus();
+
+      expect(applyProfileCalls, 1);
+      expect(prepareProfileCalls, 0);
+    });
+
     test('restore failed OHOS VPN stop recovers local running state snapshot', () async {
       final startedAt = DateTime.now().subtract(const Duration(seconds: 5));
       final traffics = FixedList<Traffic>(

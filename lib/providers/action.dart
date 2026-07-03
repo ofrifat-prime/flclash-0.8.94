@@ -287,6 +287,15 @@ class SetupAction extends _$SetupAction {
   @visibleForTesting
   Future<bool> Function()? startCoreListener;
 
+  @visibleForTesting
+  Future<bool> Function()? applyProfileForInitIdle;
+
+  @visibleForTesting
+  Future<bool> Function()? prepareProfileConfigOnlyForInitIdle;
+
+  @visibleForTesting
+  bool Function()? isOhosPlatform;
+
   bool get isStart => startTime != null && startTime!.isBeforeNow;
 
   @override
@@ -300,6 +309,10 @@ class SetupAction extends _$SetupAction {
         () => ref.read(coreActionProvider.notifier).tryStartCore(true);
     applyProfileForFallback ??= () => applyProfile(force: true, silence: true);
     startCoreListener ??= () => coreController.startListener();
+    applyProfileForInitIdle ??= () => applyProfile(force: true);
+    prepareProfileConfigOnlyForInitIdle ??=
+        () => prepareProfileConfigOnly(force: true);
+    isOhosPlatform ??= () => system.isOhos;
   }
 
   SetupParams get setupParams => _setupParams;
@@ -400,7 +413,7 @@ class SetupAction extends _$SetupAction {
     if (!ref.read(initProvider)) return false;
     ref.read(delayDataSourceProvider.notifier).value = {};
     final useOhosVpnConfigOnly = shouldUseOhosVpnConfigOnly(
-      isOhos: system.isOhos,
+      isOhos: isOhosPlatform!(),
       vpnEnabled: ref.read(vpnStateProvider).vpnProps.enable,
     );
     final applied = useOhosVpnConfigOnly
@@ -507,14 +520,14 @@ class SetupAction extends _$SetupAction {
         ? true
         : ref.read(appSettingProvider).autoRun;
     final useOhosVpnConfigOnly = shouldUseOhosVpnConfigOnly(
-      isOhos: system.isOhos,
+      isOhos: isOhosPlatform!(),
       vpnEnabled: ref.read(vpnStateProvider).vpnProps.enable,
     );
     if (status == true) {
       await updateStatus(true, isInit: true);
     } else {
       final applied = useOhosVpnConfigOnly
-          ? await prepareProfileConfigOnly(force: true)
+          ? await applyProfileForInitIdle!()
           : await applyProfile(force: true);
       if (!applied) {
         await _fallbackCurrentProfile(
@@ -535,7 +548,7 @@ class SetupAction extends _$SetupAction {
       }
       ref.read(currentProfileIdProvider.notifier).value = profile.id;
       final applied = useOhosVpnConfigOnly
-          ? await prepareProfileConfigOnly(force: true)
+          ? await applyProfileForInitIdle!()
           : await applyProfileForFallback!();
       if (applied) {
         return;
@@ -559,7 +572,7 @@ class SetupAction extends _$SetupAction {
     bool captureOhosVpnStopRollbackState = true,
   }) async {
     final useOhosVpnConfigOnly = shouldUseOhosVpnConfigOnly(
-      isOhos: system.isOhos,
+      isOhos: isOhosPlatform!(),
       vpnEnabled: ref.read(vpnStateProvider).vpnProps.enable,
     );
     if (isStart) {
