@@ -1035,6 +1035,8 @@ class BackupAction extends _$BackupAction {
 
 @Riverpod(keepAlive: true)
 class CoreAction extends _$CoreAction {
+  Completer<void>? _pendingConnectCore;
+
   @visibleForTesting
   Future<String> Function() preloadCore = () => coreController.preload();
 
@@ -1122,18 +1124,39 @@ class CoreAction extends _$CoreAction {
   }
 
   Future<void> connectCore() async {
-    ref.read(coreStatusProvider.notifier).value = CoreStatus.connecting;
-    final result = await Future.wait([
-      preloadCore(),
-      Future.delayed(const Duration(milliseconds: 300)),
-    ]);
-    final String message = result[0];
-    if (message.isNotEmpty) {
-      ref.read(coreStatusProvider.notifier).value = CoreStatus.disconnected;
-      showCoreConnectFailure(message);
+    final pendingConnectCore = _pendingConnectCore;
+    if (pendingConnectCore != null) {
+      commonPrint.log('[OHOS-CORE] connectCore join in-flight attempt');
+      await pendingConnectCore.future;
       return;
     }
-    ref.read(coreStatusProvider.notifier).value = CoreStatus.connected;
+
+    final completer = Completer<void>();
+    _pendingConnectCore = completer;
+    ref.read(coreStatusProvider.notifier).value = CoreStatus.connecting;
+    commonPrint.log('[OHOS-CORE] connectCore begin');
+    try {
+      final result = await Future.wait([
+        preloadCore(),
+        Future.delayed(const Duration(milliseconds: 300)),
+      ]);
+      final String message = result[0];
+      if (message.isNotEmpty) {
+        commonPrint.log('[OHOS-CORE] connectCore failed message=$message');
+        ref.read(coreStatusProvider.notifier).value = CoreStatus.disconnected;
+        showCoreConnectFailure(message);
+        return;
+      }
+      ref.read(coreStatusProvider.notifier).value = CoreStatus.connected;
+      commonPrint.log('[OHOS-CORE] connectCore connected');
+    } finally {
+      if (!completer.isCompleted) {
+        completer.complete();
+      }
+      if (identical(_pendingConnectCore, completer)) {
+        _pendingConnectCore = null;
+      }
+    }
   }
 
   Future<Result<bool>> requestAdmin(bool enableTun) async {

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/enum/enum.dart';
@@ -349,6 +351,37 @@ void main() {
       await runUiCoreStartupSequence(container);
 
       expect(container.read(coreStatusProvider), CoreStatus.disconnected);
+    });
+
+    test('connectCore coalesces concurrent startup attempts', () async {
+      final container = ProviderContainer(
+        overrides: [
+          coreStatusProvider.overrideWithBuild((_, _) => CoreStatus.disconnected),
+          versionProvider.overrideWithBuild((_, _) => 1),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final notifier = container.read(coreActionProvider.notifier);
+      notifier.showCoreConnectFailure = (_) {};
+      var preloadCalls = 0;
+      final preloadCompleter = Completer<String>();
+      notifier.preloadCore = () {
+        preloadCalls += 1;
+        return preloadCompleter.future;
+      };
+
+      final firstConnect = notifier.connectCore();
+      final secondConnect = notifier.connectCore();
+
+      expect(preloadCalls, 1);
+      expect(container.read(coreStatusProvider), CoreStatus.connecting);
+
+      preloadCompleter.complete('');
+      await Future.wait([firstConnect, secondConnect]);
+
+      expect(preloadCalls, 1);
+      expect(container.read(coreStatusProvider), CoreStatus.connected);
     });
 
     test('initCore throws when core init returns false', () async {
