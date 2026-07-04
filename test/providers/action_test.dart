@@ -636,21 +636,15 @@ void main() {
 
       final notifier = container.read(setupActionProvider.notifier);
       var applyProfileCalls = 0;
-      var prepareProfileCalls = 0;
       notifier.isOhosPlatform = () => true;
       notifier.applyProfileForInitIdle = () async {
         applyProfileCalls += 1;
-        return true;
-      };
-      notifier.prepareProfileConfigOnlyForInitIdle = () async {
-        prepareProfileCalls += 1;
         return true;
       };
 
       await notifier.initStatus();
 
       expect(applyProfileCalls, 1);
-      expect(prepareProfileCalls, 0);
     });
 
     test('ohos stopping vpn keeps ui core connected', () async {

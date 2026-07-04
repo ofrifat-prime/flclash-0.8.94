@@ -291,9 +291,6 @@ class SetupAction extends _$SetupAction {
   Future<bool> Function()? applyProfileForInitIdle;
 
   @visibleForTesting
-  Future<bool> Function()? prepareProfileConfigOnlyForInitIdle;
-
-  @visibleForTesting
   bool Function()? isOhosPlatform;
 
   bool get isStart => startTime != null && startTime!.isBeforeNow;
@@ -310,8 +307,6 @@ class SetupAction extends _$SetupAction {
     applyProfileForFallback ??= () => applyProfile(force: true, silence: true);
     startCoreListener ??= () => coreController.startListener();
     applyProfileForInitIdle ??= () => applyProfile(force: true);
-    prepareProfileConfigOnlyForInitIdle ??=
-        () => prepareProfileConfigOnly(force: true);
     isOhosPlatform ??= () => system.isOhos;
   }
 
