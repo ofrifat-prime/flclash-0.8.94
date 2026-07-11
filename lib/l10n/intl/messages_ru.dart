@@ -1118,5 +1118,6 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "yearsAgo": m25,
     "zh_CN": MessageLookupByLibrary.simpleMessage("Упрощенный китайский"),
+    "fa": MessageLookupByLibrary.simpleMessage("Персидский"),
   };
 }
