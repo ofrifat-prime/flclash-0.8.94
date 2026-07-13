@@ -84,6 +84,10 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <action android:name="${applicationId}.action.TOGGLE" />
             </intent-filter>
+            <intent-filter>
+                <category android:name="android.intent.category.DEFAULT" />
+                <action android:name="${applicationId}.action.SELECT_PROXY" />
+            </intent-filter>
         </activity>
 
         <service
@@ -109,6 +113,26 @@
                 <action android:name="${applicationId}.intent.action.SERVICE_CREATED" />
                 <action android:name="${applicationId}.intent.action.SERVICE_DESTROYED" />
             </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name=".WidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="${applicationId}.action.CYCLE_MODE" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="${applicationId}.action.CYCLE_NODE" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="${applicationId}.action.SELECT_PROXY" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_info" />
         </receiver>
 
         <meta-data

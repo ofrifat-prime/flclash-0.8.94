@@ -7,6 +7,7 @@ import 'package:fl_clash/core/core.dart';
 import 'package:fl_clash/l10n/l10n.dart';
 import 'package:fl_clash/manager/hotkey_manager.dart';
 import 'package:fl_clash/manager/manager.dart';
+import 'package:fl_clash/manager/widget_manager.dart';
 import 'package:fl_clash/plugins/app.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/state.dart';
@@ -97,7 +98,7 @@ class ApplicationState extends ConsumerState<Application> {
         ),
       );
     }
-    return AndroidManager(child: TileManager(child: child));
+    return AndroidManager(child: TileManager(child: WidgetManager(child: child)));
   }
 
   Widget _buildState({required Widget child}) {
