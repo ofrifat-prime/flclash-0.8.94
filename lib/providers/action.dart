@@ -575,7 +575,8 @@ class SystemAction extends _$SystemAction {
   }
 
   Future<void> handleExit([bool needSave = false]) async {
-    Future.delayed(const Duration(seconds: 3), () {
+    final forceExitTimer = Timer(const Duration(seconds: 10), () {
+      commonPrint.log('exit force exit after timeout', logLevel: LogLevel.warning);
       system.exit();
     });
     try {
@@ -589,6 +590,7 @@ class SystemAction extends _$SystemAction {
       await coreController.destroy();
       commonPrint.log('exit');
     } finally {
+      forceExitTimer.cancel();
       system.exit();
     }
   }
