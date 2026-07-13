@@ -1,11 +1,17 @@
 package com.follow.clash
 
+import android.appwidget.AppWidgetManager
+import android.content.ComponentName
+import android.content.Intent
 import android.net.VpnService
+import com.follow.clash.common.AccessControlMode
 import com.follow.clash.common.GlobalState
 import com.follow.clash.models.SharedState
 import com.follow.clash.plugins.AppPlugin
 import com.follow.clash.plugins.TilePlugin
+import com.follow.clash.service.models.AccessControlProps
 import com.follow.clash.service.models.NotificationParams
+import com.follow.clash.service.models.VpnOptions
 import com.google.gson.Gson
 import io.flutter.embedding.engine.FlutterEngine
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -150,6 +156,24 @@ object State {
         )
     }
 
+    fun defaultVpnOptions(): VpnOptions = VpnOptions(
+        enable = true,
+        port = 7890,
+        ipv6 = false,
+        dnsHijacking = true,
+        accessControlProps = AccessControlProps(
+            enable = false,
+            mode = AccessControlMode.ACCEPT_SELECTED,
+            acceptList = emptyList(),
+            rejectList = emptyList(),
+        ),
+        allowBypass = false,
+        systemProxy = true,
+        bypassDomain = emptyList(),
+        stack = "system",
+        routeAddress = emptyList(),
+    )
+
     private fun startService() {
         GlobalState.launch {
             runLock.withLock {
@@ -158,19 +182,23 @@ object State {
                 }
                 try {
                     runStateFlow.tryEmit(RunState.PENDING)
-                    val options = sharedState.vpnOptions ?: return@launch
+                    val options = sharedState.vpnOptions ?: defaultVpnOptions()
                     appPlugin?.let {
                         it.prepare(options.enable) {
                             runTime = Service.startService(options, runTime)
                             runStateFlow.tryEmit(RunState.START)
+                            updateWidgetRunningState(true)
                         }
                     } ?: run {
                         val intent = VpnService.prepare(GlobalState.application)
                         if (intent != null) {
+                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            GlobalState.application.startActivity(intent)
                             return@launch
                         }
                         runTime = Service.startService(options, runTime)
                         runStateFlow.tryEmit(RunState.START)
+                        updateWidgetRunningState(true)
                     }
                 } finally {
                     if (runStateFlow.value == RunState.PENDING) {
@@ -191,12 +219,25 @@ object State {
                     runStateFlow.tryEmit(RunState.PENDING)
                     runTime = Service.stopService()
                     runStateFlow.tryEmit(RunState.STOP)
+                    updateWidgetRunningState(false)
                 } finally {
                     if (runStateFlow.value == RunState.PENDING) {
                         runStateFlow.tryEmit(RunState.START)
                     }
                 }
             }
+        }
+    }
+
+    private fun updateWidgetRunningState(isStart: Boolean) {
+        val context = GlobalState.application
+        val currentState = WidgetDataStore.getState(context)
+        WidgetDataStore.saveState(context, currentState.copy(isStart = isStart))
+        val appWidgetManager = AppWidgetManager.getInstance(context)
+        val componentName = ComponentName(context, WidgetProvider::class.java)
+        val appWidgetIds = appWidgetManager.getAppWidgetIds(componentName)
+        for (appWidgetId in appWidgetIds) {
+            WidgetProvider.updateWidget(context, appWidgetManager, appWidgetId)
         }
     }
 }
